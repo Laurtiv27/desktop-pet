@@ -1,100 +1,112 @@
 # desktop-pet
 
-独立运行的透明动画桌面宠物（Electron）：可多开，内置坐姿守护与屏幕感知，支持可选 AI 碎碎念/对话。
+<p align="center">
+  <img src="assets/logo.png" alt="desktop-pet" width="120" />
+</p>
 
-本仓库是**独立桌宠应用**，不再作为 DeepSeek Harness（DSH）插件分发。
+<p align="center">
+  <strong>住在桌面上的透明动画宠物</strong><br/>
+  可拖拽 · 可多开 · 坐姿守护 · 屏幕感知 · 可选 AI 碎碎念
+</p>
 
-## 上游项目
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-%3E%3D22.12-brightgreen.svg" alt="Node" /></a>
+  <a href="https://github.com/Laurtiv27/desktop-pet"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg" alt="Platform" /></a>
+</p>
 
-本项目基于并遵循上游开源项目：
+<p align="center">
+  <img src="assets/preview/daiji-huxi-xiuxian.gif" alt="idle preview" width="280" />
+  <img src="assets/preview/dianji-huiying-kaixin-yuedong.gif" alt="click preview" width="280" />
+</p>
 
-- **dsh-pet**：https://github.com/PC2005-cloud/dsh-pet
+---
 
-## License
+## Features
 
-代码采用 **MIT**，**遵循上游许可**（详见 `LICENSE` 与 `NOTICE`）。
+- **透明桌宠** — 上百个 VP9-alpha 动画，拖拽、物理、气泡与托盘常驻
+- **多开与设置** — 多只宠物同屏；设置页调大小、位置、人设与开关
+- **坐姿守护** — 摄像头 + MediaPipe；趴桌 / 低头 / 疲劳等提醒，可演出或系统通知
+- **屏幕感知** — 碎碎念时可带一帧桌面截图（默认关闭；不落盘；可黑名单）
+- **独立 AI** — 自备 API Key，支持碎碎念与对话（可选）
 
-- 上游版权：PC2005-cloud  
-- 本仓库改动版权：Laurtiv27  
-- 素材禁止商用；公开渠道二创须署名，并指向上游与本仓库
-
-## 功能概览
-
-- 透明桌宠动画 / 多开 / 设置页
-- 坐姿守护（摄像头 + MediaPipe，设置页与右键菜单控制）
-- 屏幕感知（碎碎念触发时可选带图；默认关闭；截图不落盘）
-- 独立模式 AI（需自行配置 API）
-
-## 要求
+## Requirements
 
 - Node.js `>= 22.12.0`
-- Windows / macOS / Linux（桌面模式依赖 Electron）
+- 桌面环境（Electron）
+- 坐姿守护需要摄像头权限
+- AI 功能需自行配置兼容的模型服务
 
-## 快速开始
+## Quick Start
 
 ```bash
+git clone https://github.com/Laurtiv27/desktop-pet.git
+cd desktop-pet
 npm install
 npm run build
 npm run standalone
 ```
 
-或桌面入口：
+也可以：
 
 ```bash
-npm run start:desktop
+npm run start:desktop   # 桌面入口
+npm run start:app       # Electron 应用模式
+npm run dist            # 打包分发
 ```
 
-独立应用打包相关脚本见 `package.json` 的 `start:app` / `dist`。
-
-## 坐姿守护 / 屏幕感知
+## Usage
 
 ### 坐姿守护
 
-坐姿检测已内置在桌宠 Electron 进程中，不再依赖单独的 `posture-guard` 可执行文件或 `start_dsh_pet.bat`。
+1. 启动桌宠后，打开**设置页**（托盘或右键 → 设置）
+2. 在「坐姿守护」中勾选启用；灵敏度、冷却、蜂鸣 / 演出即时生效
+3. 或在桌宠上**右键 → 坐姿守护**：启用 / 暂停 / 重新校准
 
-**如何开启**
+趴桌、瘫坐会综合头下沉、脸凑近、低头等信号；另有持续下视提醒。首次启用时请允许摄像头权限。
 
-1. 先启动桌面桌宠（`npm run start:desktop` 或独立模式 `npm run standalone`）。
-2. 在**桌宠设置页**（托盘或右键菜单 → 打开设置）找到「坐姿守护」卡片，勾选「启用坐姿守护」；灵敏度、冷却（5/10/30 秒）、蜂鸣/桌宠演出会即时生效，无需点「保存」。
-3. 也可在**桌宠上右键** →「坐姿守护」→ 启用 / 关闭、暂停 / 继续、重新校准。
+配置目录：`$DSH_HOME/dsh-pet/`（默认 `~/.dsh`，可用环境变量 `DSH_HOME` 覆盖）
 
-趴桌/瘫坐会综合「头下沉 + 脸凑近 + 低头」判断；另有「持续下视」提醒。虹膜表观尺度仅内部预留，不做瞳孔告警。
-
-**摄像头权限**
-
-首次启用时，系统会询问摄像头权限（Windows 设置 → 隐私 → 相机）。若拒绝或摄像头被占用，设置页状态行会显示错误（如「摄像头被占用」），不会空转；重新授权后再次启用即可。
-
-**配置文件路径**（`DSH_HOME` 默认为用户目录下的 `.dsh`，可用环境变量 `DSH_HOME` 覆盖）
-
-| 文件 | 用途 |
+| 文件 | 说明 |
 |------|------|
-| `$DSH_HOME/dsh-pet/posture-config.json` | 开关、灵敏度、冷却、提醒方式等 |
-| `$DSH_HOME/dsh-pet/posture-api.json` | 运行中 helper 的控制口（本机回环，勿手改） |
-
-**说明**
-
-旧版独立 Python 项目 `posture-guard`（托盘 exe + HTTP 桥接）已移除；坐姿能力只保留在本仓库内置实现中。
+| `posture-config.json` | 开关、灵敏度、冷却、提醒方式 |
+| `posture-api.json` | 本机控制口（运行时自动写入，勿手改） |
 
 ### 屏幕感知
 
-碎碎念触发时截取桌面画面，与以往碎碎念历史一起交给模型生成那句话（一次调用，带图）。**默认关闭**；与「坐姿守护」互不干扰，可单独开关。不再独立定时截屏，聊天也不再注入屏幕摘要。
+1. 设置页打开「屏幕感知」并按需编辑黑名单
+2. 需已配置 **支持看图** 的 AI；失败时回退为纯文本碎碎念
+3. 窗口标题 / 进程名命中黑名单时跳过截屏（默认含密码管理、支付、银行等关键词）
 
-**如何开启**
+截图只在内存中用于当次碎碎念，**不会写入磁盘**。
 
-1. 先启动桌面桌宠（`npm run start:desktop` 或独立模式 `npm run standalone`）。
-2. 在**桌宠设置页**找到「屏幕感知」卡片，勾选「启用」，按需调整黑名单；改动即时生效。
-3. 需要**独立模式 AI 已就绪**，且当前模型**支持看图**；不支持或截屏失败时仍会出纯文本碎碎念。
-
-**黑名单**
-
-窗口标题或进程名**包含**任一黑名单片段（大小写不敏感）时，本轮跳过截屏。默认已含常见密码管理、支付、银行等关键词，可在设置页按行增删。
-
-**隐私说明**
-
-截图仅在内存中用于当次碎碎念，**不会把图像写入磁盘**；用完即释放。
-
-**配置文件路径**（`DSH_HOME` 默认为用户目录下的 `.dsh`）
-
-| 文件 | 用途 |
+| 文件 | 说明 |
 |------|------|
-| `$DSH_HOME/dsh-pet/screen-context.json` | 开关、黑名单等 |
+| `screen-context.json` | 开关与黑名单 |
+
+### AI
+
+在设置页填入协议、Base URL、模型与 API Key。未配置时桌宠仍可运行，仅碎碎念 / 对话不可用。
+
+## Project Layout
+
+```
+src/standalone/     # 独立启动、设置页、AI
+src/host/           # 桌宠宿主逻辑
+src/shared/         # 坐姿 / 屏幕感知等共享模块
+runtime/            # Electron helper（透明窗、托盘、检测窗）
+assets/             # 动画、音效、坐姿模型
+```
+
+## Acknowledgments
+
+基于上游开源项目 [dsh-pet](https://github.com/PC2005-cloud/dsh-pet) 整理为独立桌宠应用。
+
+## License
+
+代码 **MIT**，**遵循上游许可**。详见 [`LICENSE`](LICENSE) 与 [`NOTICE`](NOTICE)。
+
+- 上游版权：PC2005-cloud  
+- 本仓库改动：Laurtiv27  
+- **素材禁止商用**；公开渠道二创须署名，并同时指向上游与本仓库：  
+  [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) · [Laurtiv27/desktop-pet](https://github.com/Laurtiv27/desktop-pet)
