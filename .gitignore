@@ -1,0 +1,13 @@
+﻿node_modules/
+dist-app/
+lib/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+.superpowers/
+docs/superpowers/
+*.local
+.idea/
+.vscode/

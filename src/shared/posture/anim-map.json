@@ -1,0 +1,40 @@
+{
+  "_comment": "坐姿事件 → 桌宠动画名。/anim 只认该宠动画池内动作名；by_pet 按宠物 id，未登记则用 default。动作名必须真实存在于池中，否则点播落空（气泡仍可显示）。",
+  "default": {
+    "slouch": "被吓一跳",
+    "slump": "被吓一跳",
+    "tilt": "被吓一跳",
+    "near": "被吓一跳",
+    "fatigue": "哈欠连天",
+    "yawn": "哈欠连天",
+    "nod": "原地小憩沉眠",
+    "perclos": "超大伸懒腰",
+    "gaze_down": "原地小憩沉眠"
+  },
+  "by_pet": {
+    "main": {
+      "_note": "内置默认蓝毛小女仆，动作名来自 assets/config.jsonc 的小动作池",
+      "slouch": "被吓一跳",
+      "slump": "被吓一跳",
+      "tilt": "被吓一跳",
+      "near": "被吓一跳",
+      "fatigue": "哈欠连天",
+      "yawn": "哈欠连天",
+      "nod": "原地小憩沉眠",
+      "perclos": "超大伸懒腰",
+      "gaze_down": "原地小憩沉眠"
+    },
+    "dengxi": {
+      "_note": "灯汐专属动作池：星伴小星 / 呆毛 / 琥珀金眼，刻意不复用 main 的动作名与表演",
+      "slouch": "星伴轻撞",
+      "slump": "星伴轻撞",
+      "tilt": "呆毛歪一下",
+      "near": "悄悄凑近",
+      "fatigue": "打哈欠",
+      "yawn": "打哈欠",
+      "nod": "点头犯困",
+      "perclos": "展臂醒神",
+      "gaze_down": "点头犯困"
+    }
+  }
+}

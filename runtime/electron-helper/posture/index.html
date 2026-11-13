@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      file:// 隐藏窗从同目录 vendor/ 加载 MediaPipe 脚本，并用 XHR 读本地模型。
+      script-src 的 wasm-unsafe-eval 是开了 CSP 之后编译 wasm 所必需的。
+      init 若传 https 模型或 visionScriptPath，connect-src / script-src 需放行 http: https:。
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' file: blob: data:; script-src 'self' file: http: https: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: file:; media-src 'self' blob: file:; connect-src 'self' file: blob: http: https:;"
+    />
+    <title>dsh-pet 坐姿检测</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+        font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif;
+      }
+      #camera {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: #000;
+      }
+      #posture-status {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        margin: 0;
+        padding: 4px 8px;
+        color: #ddd;
+        font-size: 12px;
+        background: rgba(0, 0, 0, 0.45);
+      }
+    </style>
+  </head>
+  <body>
+    <video id="camera" autoplay muted playsinline width="640" height="480"></video>
+    <p id="posture-status">等待初始化</p>
+    <!-- core.js 先于 detector：检测循环读全局 PostureCore。vision_bundle 是经典 IIFE（全局 Vision），不能用 ESM。 -->
+    <script src="./core.js"></script>
+    <script src="./vendor/vision_bundle.js"></script>
+    <script src="./detector.js"></script>
+  </body>
+</html>
