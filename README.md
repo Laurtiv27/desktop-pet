@@ -100,7 +100,8 @@ assets/             # 动画、音效、坐姿模型
 
 ## Acknowledgments
 
-基于上游开源项目 [dsh-pet](https://github.com/PC2005-cloud/dsh-pet) 整理为独立桌宠应用。
+- 上游项目：[dsh-pet](https://github.com/PC2005-cloud/dsh-pet)
+- 宠物动作素材：[AI 跟图 · 宠物动画](https://aigengtu.com/pet-anims)
 
 ## License
 
@@ -108,5 +109,5 @@ assets/             # 动画、音效、坐姿模型
 
 - 上游版权：PC2005-cloud  
 - 本仓库改动：Laurtiv27  
-- **素材禁止商用**；公开渠道二创须署名，并同时指向上游与本仓库：  
-  [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) · [Laurtiv27/desktop-pet](https://github.com/Laurtiv27/desktop-pet)
+- **素材禁止商用**；公开渠道二创须署名，并指向上游、本仓库与动作来源：  
+  [dsh-pet](https://github.com/PC2005-cloud/dsh-pet) · [desktop-pet](https://github.com/Laurtiv27/desktop-pet) · [pet-anims](https://aigengtu.com/pet-anims)
