@@ -32,6 +32,9 @@ export interface StandaloneTextBlock {
 
 /** 流式文本拼装：只收集文本块，独立模式只会有空流。 */
 export class BlockAssembler {
+  /** 流终止块。空实现没有终止原因，宿主用它解释「没有正文」。 */
+  readonly finish: unknown = undefined;
+
   /** 已收集的文本片段。 */
   private readonly chunks: string[] = [];
 

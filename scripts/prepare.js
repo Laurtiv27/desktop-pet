@@ -4,9 +4,9 @@
  * 再把 package.json 的 files 收敛成发布清单。幂等：跑一次即定格，再跑结果不变，无需备份或恢复。
  *
  * 只发布单一 webm 格式（VP9-alpha），浏览器与桌面 Helper 共用，源码写死 .webm、发布期不做注入；
- * Safari/HEVC 兼容由仓库保留的流水线支持、需 fork 后自行启用，不参与本插件发布链。
+ * Safari/HEVC 兼容由仓库保留的流水线支持、需 fork 后自行启用，不参与本包发布链。
  * 依赖 package.json 里的 bundle / build:desktop-core / types 三个脚本与本地 node_modules。
- * @module dsh-pet/scripts/prepare
+ * @module desktop-pet/scripts/prepare
  */
 import { spawnSync } from 'node:child_process';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -70,7 +70,7 @@ const keep = [
   // 坐姿模型。wasm / vision / anim-map 在 runtime/electron-helper/posture/vendor，随 runtime 走。
   'assets/posture',
   'assets/config.jsonc',
-  // 插件图标：package.json 顶层 icon 指向这张图；缺图时读取方 dsh-app-boot 的 iconOf 会抛错、退回默认插画。
+  // 应用图标：package.json 顶层 icon 指向这张图，设置页与打包也用它。
   'assets/logo.png',
   // 角色参考图：/character 的包内兜底只读 `<素材根>-character.<ext>`，漏发则第三方拿不到官方参考图。
   // 新增内置角色时在这里补一行（文件名里的素材根跟着角色走）。
