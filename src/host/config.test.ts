@@ -1234,6 +1234,58 @@ describe('readAllConfig —— 宠物固定合并（缺失取默认 / 非法回�
   });
 });
 
+describe('saveUserConfig —— 实例级 presentation（per-pet 白名单）', () => {
+  const petAt = (out: Record<string, unknown> | null, n = 0): Record<string, unknown> =>
+    (out?.pets as Record<string, unknown>[])[n];
+
+  test('随请求体逐宠物写入（不在白名单就会被保存悄悄丢掉）', () => {
+    const out = saveOnce({ pets: [{ ...PETS[0], presentation: 'spine' }] });
+    assert.equal(petAt(out).presentation, 'spine', 'presentation 必须在 saveUserConfig 的白名单里');
+  });
+
+  test('未传时落盘即缺失（读取侧按 video，不凭空造值）', () => {
+    const bare: Record<string, unknown> = { ...PETS[0] };
+    delete bare.presentation;
+    assert.equal(petAt(saveOnce({ pets: [bare] })).presentation, undefined);
+  });
+
+  test('传非法值 → 整体拒绝（宿主回 400，不静默丢输入）', () => {
+    assert.equal(saveOnce({ pets: [{ ...PETS[0], presentation: 'nope' }] }), null);
+    assert.equal(saveOnce({ pets: [{ ...PETS[0], presentation: 1 }] }), null);
+  });
+
+  test('逐实例独立：一只 spine 一只 video 都按各自的值落盘', () => {
+    const out = saveOnce({
+      pets: [
+        { ...PETS[0], id: 'a', presentation: 'spine' },
+        { ...PETS[0], id: 'b', presentation: 'video' },
+      ],
+    });
+    const pets = out?.pets as Record<string, unknown>[];
+    assert.equal(pets.find((p) => p.id === 'a')?.presentation, 'spine');
+    assert.equal(pets.find((p) => p.id === 'b')?.presentation, 'video');
+  });
+});
+
+describe('readAllConfig —— 实例级 presentation（原样带出 / 缺省不落键）', () => {
+  const petAt = (merged: Record<string, Record<string, unknown>>, n = 0): Record<string, unknown> =>
+    (merged.main.pets as Record<string, unknown>[])[n];
+
+  test('用户层写了 spine → 合并结果原样带出', () => {
+    const merged = readAllConfig(withBase({}, { pets: [{ ...BASE.pets[0], presentation: 'spine' }] }));
+    assert.equal(petAt(merged).presentation, 'spine');
+  });
+
+  test('用户层没写 → 该键不出现（播放端按 video）', () => {
+    assert.equal('presentation' in petAt(readAllConfig(withBase({}))), false);
+  });
+
+  test('用户层写了非法值 → 忽略该键（告警 + 不让脏值进渲染层）', () => {
+    const merged = readAllConfig(withBase({}, { pets: [{ ...BASE.pets[0], presentation: 'nope' }] }));
+    assert.equal('presentation' in petAt(merged), false);
+  });
+});
+
 describe('syncUserConfigFromDefault —— 同步（内置默认原文写入用户层）', () => {
   /** 默认文件写入给定原文；用户文件故意放在尚不存在的子目录里（验证父目录自建） */
   function fixture(raw: string): { paths: ConfigPaths; dir: string } {

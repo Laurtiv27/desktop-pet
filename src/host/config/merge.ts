@@ -5,7 +5,14 @@
  * 必须始终成立：只填缺省、不覆盖显式值；未知字段不透传。
  * @module dsh-pet/src/host/config/merge
  */
-import { CORNER_SET, GLOBAL_DEFAULT_KEYS, isValidPetId, PET_DISPLAY_SET, warnOnce } from './constants.ts';
+import {
+  CORNER_SET,
+  GLOBAL_DEFAULT_KEYS,
+  isValidPetId,
+  PET_DISPLAY_SET,
+  PET_PRESENTATION_SET,
+  warnOnce,
+} from './constants.ts';
 import { isValidSizePercent, SIZE_PERCENT_DEFAULT, SIZE_PERCENT_MIN } from '../../shared/pet-size.ts';
 import { topFieldValid } from './validate.ts';
 
@@ -176,7 +183,16 @@ function mergePet(
     // 这里刻意不填生效值：人设的默认值是所属条目那一份，一旦填进每只实例，/pet-display 写回就会把
     // 「跟随条目」固化成显式覆盖——之后用户改条目人设，这些实例不再跟着变。
     ...petPersonaField(p.whisperPrompt, label, id),
+    ...petPresentationField(p.presentation, label, id),
   };
+}
+
+/** 实例级 presentation：只放行 video / spine；没写不落键（播放端按 video）；非法 → 告警并忽略。 */
+function petPresentationField(own: unknown, label: string, id: string): { presentation?: string } {
+  if (own === undefined || own === null) return {};
+  if (typeof own === 'string' && PET_PRESENTATION_SET.has(own)) return { presentation: own };
+  warnOnce(`${label}:presentation:${id}`, `宠物「${id}」的 presentation 非法，已忽略（按视频序列处理）`);
+  return {};
 }
 
 /**

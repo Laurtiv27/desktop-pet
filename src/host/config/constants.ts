@@ -18,6 +18,9 @@ export const CORNER_SET: ReadonlySet<string> = new Set(CORNERS);
  *  唯一来源是 shared/config 的 PET_DISPLAYS，读写两侧必须同一份规则，不在路由里另写一个 Set。 */
 export const PET_DISPLAY_SET: ReadonlySet<string> = new Set(PET_DISPLAYS);
 
+/** presentation 白名单：仅 video / spine；缺省由播放端按 video 处理。 */
+export const PET_PRESENTATION_SET: ReadonlySet<string> = new Set(['video', 'spine']);
+
 /** font.family 白名单：唯一来源是 shared/fonts 的 FONT_PRESETS，宿主只取 id 做校验。 */
 export const FONT_FAMILY_SET: ReadonlySet<string> = new Set(FONT_PRESETS.map((preset) => preset.id));
 

@@ -8,7 +8,7 @@
 import { defaultLog } from '../log-file.ts';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { CORNER_SET, isValidPetId, PET_DISPLAY_SET } from './constants.ts';
+import { CORNER_SET, isValidPetId, PET_DISPLAY_SET, PET_PRESENTATION_SET } from './constants.ts';
 import { isValidSizePercent } from '../../shared/pet-size.ts';
 import type { ConfigPaths } from './constants.ts';
 import { fontValid, modelSelectionValid, physicsValid, topFieldValid } from './validate.ts';
@@ -58,6 +58,11 @@ export function saveUserConfig(
     // 传了必须是布尔，没传则走下面的读取侧默认值（内置默认 false = 不固定）。
     const fixedEnabled = pp.fixedEnabled;
     if (fixedEnabled !== undefined && typeof fixedEnabled !== 'boolean') return null;
+    // 表现类型（可选）：传了必须是 video / spine，没传则不落键（读取侧按 video）。
+    const presentation = pp.presentation;
+    if (presentation !== undefined && presentation !== null && !PET_PRESENTATION_SET.has(String(presentation))) {
+      return null;
+    }
     const display = String(pp.display ?? '');
     if (!PET_DISPLAY_SET.has(display)) return null;
     const pos = pp.position && typeof pp.position === 'object' ? (pp.position as Record<string, unknown>) : {};
@@ -86,6 +91,7 @@ export function saveUserConfig(
     };
     if (persona) pet.whisperPrompt = persona;
     if (sizePercent !== undefined && sizePercent !== null) pet.sizePercent = sizePercent;
+    if (presentation === 'video' || presentation === 'spine') pet.presentation = presentation;
     out.push(pet);
   }
   const ne = o.notificationsEnabled;

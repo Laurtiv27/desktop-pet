@@ -27,6 +27,11 @@ function pickWeights(raw) {
   return base;
 }
 
+/** 表现类型：仅 spine 为骨骼，其余（缺省/非法）回落 video。 */
+function pickPresentation(raw) {
+  return raw === 'spine' ? 'spine' : 'video';
+}
+
 function pickGlobals(main) {
   const source = main || {};
   const physics = source.physics && typeof source.physics === 'object' ? source.physics : null;
@@ -64,6 +69,7 @@ function initDrafts(config) {
     const conf = config[key];
     if (!conf || !Array.isArray(conf.pets)) continue;
     state.pets[key] = cloneJson(conf.pets);
+    for (const pet of state.pets[key]) pet.presentation = pickPresentation(pet.presentation);
     if (typeof conf.whisperPrompt === 'string') state.prompts[key] = conf.whisperPrompt;
   }
   if (!state.pets.main) state.pets.main = [];
