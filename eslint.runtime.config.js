@@ -103,6 +103,9 @@ const scriptGlobals = {
   OPEN_SHORTCUT_HINT: 'readonly',
   isOpenShortcut: 'readonly',
   playClickSound: 'readonly',
+  // sprite/presentation-spine-stub.js、sprite/presentation.js
+  createSpineStubPresentation: 'readonly',
+  createPresentation: 'readonly',
   // events.js
   startLoops: 'readonly',
 };
