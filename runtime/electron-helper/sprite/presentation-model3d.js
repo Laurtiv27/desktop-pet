@@ -30,7 +30,9 @@ function createModel3dPresentation(opts) {
   let clipsByName = null;
   let pendingPlay = null;
   let presentation;
-  const state = { facing: 'left', loop: true, currentClip: '' };
+  let currentAction = null;
+  let paused = false;
+  const state = { facing: 'left', loop: true, currentClip: '', onEnded: null };
 
   function mount(parent) {
     const canvas = document.createElement('canvas');
@@ -64,7 +66,8 @@ function createModel3dPresentation(opts) {
       if (disposed) return;
       raf = requestAnimationFrame(loop);
       const dt = clock.getDelta();
-      if (mixer) mixer.update(dt);
+      // 冻结时仍抽干 clock，避免解冻第一帧把整段暂停时长灌进 mixer。
+      if (mixer && !paused) mixer.update(dt);
       renderer.render(scene, camera);
     };
     loop();
@@ -86,6 +89,8 @@ function createModel3dPresentation(opts) {
         if (meta.pivot) model.position.set(meta.pivot.x || 0, meta.pivot.y || 0, meta.pivot.z || 0);
         root.add(model);
         mixer = new THREE.AnimationMixer(model);
+        mixer.timeScale = paused ? 0 : 1;
+        mixer.addEventListener('finished', onClipFinished);
         clipsByName = Object.create(null);
         for (const c of gltf.animations || []) clipsByName[c.name] = c;
         presentation._clipsByName = clipsByName;
@@ -117,22 +122,44 @@ function createModel3dPresentation(opts) {
     return lookupClip(idleName);
   }
 
+  function onClipFinished(event) {
+    if (state.loop) return;
+    if (event && event.action && currentAction && event.action !== currentAction) return;
+    const cb = state.onEnded;
+    state.onEnded = null;
+    if (typeof cb === 'function') {
+      cb();
+      return;
+    }
+    const sprite = opts && opts.sprite;
+    if (sprite && typeof sprite.handleEnded === 'function') sprite.handleEnded();
+  }
+
+  function setPaused(next) {
+    paused = !!next;
+    if (mixer) mixer.timeScale = paused ? 0 : 1;
+  }
+
   function play(slotOrName, playOpts) {
     const loop = !!(playOpts && playOpts.loop);
     state.loop = loop;
     state.currentClip = slotOrName || '';
+    state.onEnded = playOpts && typeof playOpts.onEnded === 'function' ? playOpts.onEnded : null;
     if (!mixer || !clipsByName) {
       pendingPlay = { slot: slotOrName, playOpts };
       return;
     }
     const clip = resolveClip(slotOrName);
     if (!clip) {
+      state.onEnded = null;
+      currentAction = null;
       mixer.stopAllAction();
       console.warn('[dsh-pet] model3d 未找到动画', slotOrName);
       return;
     }
     mixer.stopAllAction();
     const action = mixer.clipAction(clip);
+    currentAction = action;
     action.reset();
     action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
     action.clampWhenFinished = !loop;
@@ -167,6 +194,7 @@ function createModel3dPresentation(opts) {
     mount,
     play,
     setFacing,
+    setPaused,
     dispose,
     _clipsByName: null,
     _mixer: null,

@@ -50,9 +50,10 @@ Object.assign(PetSprite.prototype, {
     const token = ++this.moveToken;
     const W = VIEW.w;
     const H = VIEW.h;
-    const speed = speedPx > 0 ? speedPx : 120;
+    const speed = speedPx > 0 ? speedPx : this.model3dMeta?.walkSpeedPx || 120;
     let last = performance.now();
     let playedWalk = false;
+    let stuckFrames = 0;
     const finish = () => {
       this.moveRef = null;
       this.customPos = { rx: goal.xRatio, ry: goal.yRatio };
@@ -85,7 +86,21 @@ Object.assign(PetSprite.prototype, {
       const stepPx = Math.min(dist, speed * dt);
       const nx = cx + (dx / dist) * stepPx;
       const ny = cy + (dy / dist) * stepPx;
-      this.sendBounds(nx - this.halfW, ny - this.halfH);
+      const askX = nx - this.halfW;
+      const askY = ny - this.halfH;
+      this.sendBounds(askX, askY);
+      // 窗口钳制时「想去」和「落到」差一截，dist 会一直大于 2，驱动空转。
+      // 连续几帧几乎没按请求前进就当到达并 finish。四舍五入的亚像素差（<1px）不算卡住。
+      const shortfall = Math.hypot(askX - this.pos.x, askY - this.pos.y);
+      if (shortfall > 1) {
+        stuckFrames += 1;
+        if (stuckFrames >= 3) {
+          finish();
+          return;
+        }
+      } else {
+        stuckFrames = 0;
+      }
       this.moveRef = requestAnimationFrame(step);
     };
     this.moveRef = requestAnimationFrame(step);

@@ -140,13 +140,15 @@ Object.assign(PetSprite.prototype, {
 
   /**
    * 三维换 clip：不走 videoA/B。idle 槽强制 loop。
-   * 没有 video.ended，非循环片段不会自己回到随机链（BehaviorRunner 再用定时器接）。
+   * 非待机且只播一次时，片段结束经 onEnded 进 handleEnded，与视频 ended 同一条链。
    */
   playModel3dPresentation(next, nextOnce, playbackId) {
     const isIdle = this.isModel3dIdleClip(next);
     const loop = isIdle ? true : !nextOnce;
     if (this.presentation) {
-      this.presentation.play(next, { loop });
+      const playOpts = { loop };
+      if (!isIdle && !loop) playOpts.onEnded = () => this.handleEnded();
+      this.presentation.play(next, playOpts);
       this.presentation.setFacing(this.facing === 'right' ? 'right' : 'left');
     }
     if (this.playback && this.playback !== playbackId) {
@@ -188,6 +190,9 @@ Object.assign(PetSprite.prototype, {
       // 那个入口要等动画播完才被调用。
       this.stopMove();
       if (el) el.pause();
+      if (this.presentation && typeof this.presentation.setPaused === 'function') {
+        this.presentation.setPaused(true);
+      }
       // 播放回执：冻结打断了正在播的第三方点播 → 如实回 cancelled，而不是让它一直挂着 playing
       // （挂 wait=ended 的调用方会白等一个 timeout）。解冻走的是回 idle/恢复档位，不会把它接回来。
       // 先清 this.playback 再上报，免得后续换源又当成「被顶掉」再报一次。
@@ -205,6 +210,9 @@ Object.assign(PetSprite.prototype, {
       return;
     }
     console.log(stamp + ' 占用锁解除：恢复');
+    if (this.presentation && typeof this.presentation.setPaused === 'function') {
+      this.presentation.setPaused(false);
+    }
     // 解冻：睡姿优先接回（冻结只暂停、没换源，续播即可），其次非终态工作状态回档位循环，
     // 否则回 idle 一次，播完由 handleEnded 接回随机链。
     if (this.resumeSleepAnim()) return;

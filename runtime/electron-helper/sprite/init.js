@@ -176,6 +176,7 @@ Object.assign(PetSprite.prototype, {
       this.presentation = createPresentation('model3d', {
         pet: this.pet,
         assetBase: this.model3dAssetBase,
+        sprite: this,
       });
       if (this.presentation) this.presentation.mount(stage);
     } else {
