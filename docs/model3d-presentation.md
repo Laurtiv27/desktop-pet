@@ -1,6 +1,6 @@
 # 3D 骨骼桌宠（model3d）
 
-设计规格见（工作区）：`docs/superpowers/specs/2026-11-16-model3d-presentation-design.md`。
+设计规格见：`docs/model3d-presentation-design.md`。
 
 ## 摘要
 

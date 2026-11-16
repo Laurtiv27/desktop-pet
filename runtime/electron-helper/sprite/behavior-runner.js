@@ -22,9 +22,9 @@ const ROAM_MARGIN = 0.12;
 function model3dMetaOf(sprite) {
   const raw = sprite.model3dMeta || (sprite.pet && sprite.pet.model3d && sprite.pet.model3d.meta);
   if (!raw || typeof raw !== 'object') return null;
+  // 解析失败不得回退原文：脏 meta 会被当成 autoBehavior 开启。
   if (typeof S.parseModel3dMeta === 'function') {
-    const parsed = S.parseModel3dMeta(raw);
-    if (parsed) return parsed;
+    return S.parseModel3dMeta(raw);
   }
   return raw;
 }
@@ -167,13 +167,19 @@ function createBehaviorRunner(sprite, opts) {
     runner.currentPriority = 0;
   }
 
-  /** 直接播表现层，并吞掉 mixer finished，避免非循环片段误进 handleEnded 把计划拆掉。 */
-  function playClip(clip, loop) {
+  /**
+   * 播片段并同步 sprite.anim（供 startSpeedMoveDrive 判断是否已在 walk）。
+   * 非循环默认吞掉 finished，避免误进 handleEnded；clip-end 路径可传入 onEnded。
+   */
+  function playClip(clip, loop, onEnded) {
+    sprite.anim = clip;
+    sprite.once = !loop;
     if (!sprite.presentation || typeof sprite.presentation.play !== 'function') return;
-    sprite.presentation.play(clip, {
-      loop: !!loop,
-      onEnded() {},
-    });
+    const opts = { loop: !!loop };
+    if (!loop) {
+      opts.onEnded = typeof onEnded === 'function' ? onEnded : () => {};
+    }
+    sprite.presentation.play(clip, opts);
     if (typeof sprite.presentation.setFacing === 'function') {
       sprite.presentation.setFacing(sprite.facing === 'right' ? 'right' : 'left');
     }
@@ -210,7 +216,12 @@ function createBehaviorRunner(sprite, opts) {
       const cx = ((sprite.pos && sprite.pos.x) || 0) + (sprite.halfW || 0);
       if (tx > cx + 1) sprite.facing = 'right';
       else if (tx + 1 < cx) sprite.facing = 'left';
-      playClip(step.clip, step.loop);
+      // 优先 switchTo：写入 anim，且 walk 循环不会挂 handleEnded。
+      if (typeof sprite.switchTo === 'function') {
+        sprite.switchTo(step.clip, !step.loop);
+      } else {
+        playClip(step.clip, step.loop);
+      }
       if (typeof sprite.startSpeedMoveDrive === 'function') {
         sprite.startSpeedMoveDrive({
           goal,
@@ -226,8 +237,24 @@ function createBehaviorRunner(sprite, opts) {
       return;
     }
 
+    if (step.until === 'clip-end' && !step.loop) {
+      let advanced = false;
+      const advance = () => {
+        if (advanced || myToken !== runner.token) return;
+        advanced = true;
+        clearStepTimer();
+        next();
+      };
+      playClip(step.clip, false, advance);
+      const fallback =
+        Number.isFinite(step.durationMs) && step.durationMs > 0 ? step.durationMs : CLIP_END_FALLBACK_MS;
+      waitThen(fallback, myToken, advance);
+      return;
+    }
+
     playClip(step.clip, step.loop);
-    const timed = Number.isFinite(step.durationMs) && step.durationMs > 0 ? step.durationMs : clipEndMs;
+    const timed =
+      Number.isFinite(step.durationMs) && step.durationMs > 0 ? step.durationMs : CLIP_END_FALLBACK_MS;
     waitThen(timed, myToken, next);
   }
 

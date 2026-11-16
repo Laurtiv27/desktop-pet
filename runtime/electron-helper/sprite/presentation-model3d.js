@@ -62,12 +62,19 @@ function createModel3dPresentation(opts) {
     scene.add(root);
     renderer.setSize(w, h, false);
     clock = new THREE.Clock();
+    let lastRenderSec = 0;
+    const frameInterval = 1 / 30;
     const loop = () => {
       if (disposed) return;
       raf = requestAnimationFrame(loop);
       const dt = clock.getDelta();
       // 冻结时仍抽干 clock，避免解冻第一帧把整段暂停时长灌进 mixer。
       if (mixer && !paused) mixer.update(dt);
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      if (paused || hidden) return;
+      const nowSec = performance.now() / 1000;
+      if (nowSec - lastRenderSec < frameInterval) return;
+      lastRenderSec = nowSec;
       renderer.render(scene, camera);
     };
     loop();
