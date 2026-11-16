@@ -144,6 +144,7 @@ Object.assign(PetSprite.prototype, {
   startThrow(px, py, vx, vy) {
     this.stopDragFollow();
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     // 边界 = 工作区并集：空洞是墙，屏缝不是墙（跨屏弹跳照旧）。confineToScreen 开启时改为锁定
     // 松手这一刻所在的那块屏，飞行途中不重取；relayout 改了屏数时由 throwStepRegion 退回不锁定。
     const lockScreen = this.confineToScreen ? S.screenOfBox(this.throwSpaceOf(), px, py) : -1;
@@ -233,6 +234,7 @@ Object.assign(PetSprite.prototype, {
     if (this.dragState.active) return; // 用户交互优先
     this.stopThrow(); // 先显式接管：停掉飞行与走路（stopMove 顺带停掉上一次的位置跟随）
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     // 归一化空间是外接矩形，不规则布局里含大片空洞；position() 的 customPos 分支零夹取，
     // 不夹的话落进空洞的坐标会把宠物放进看不见的地方。鼠标拖拽到不了那里不是因为代码在拦，
     // 而是光标物理上出不去屏幕——位置接口必须自己补这道守卫：把身体中心夹到 AREAS 并集。
@@ -309,6 +311,7 @@ Object.assign(PetSprite.prototype, {
   /** 被撞回调（跨窗碰撞 broker 转发）：停当前动作，从落点以新初速抛出去（全复用现有物理） */
   onDeskHit(vx, vy) {
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     this.stopDragFollow();
     this.stopThrow();
     this.startThrow(this.pos.x, this.pos.y, vx, vy);

@@ -373,6 +373,7 @@ Object.assign(PetSprite.prototype, {
     if (isOpenShortcut(e)) {
       this.stopThrow();
       this.stopMove();
+      this.cancelPlan('user');
       if (window.petBridge) window.petBridge.openDshSite(ORIGIN);
       return;
     }
@@ -381,10 +382,13 @@ Object.assign(PetSprite.prototype, {
       this.pressScoreFired = false;
       this.stopThrow();
       this.stopMove();
+      this.cancelPlan('user');
       return;
     }
     this.stopThrow(); // 点击飞行中的宠物 = 收手停住（再播点击回应）
     this.stopMove();
+    // 到达步被点击打断时只 stopMove 会把漫游计划卡在优先级 10。取消放在 stopMove 外面。
+    this.cancelPlan('user');
     // 睡觉：点一下就是叫醒。挤压与音效照常（手感与平时一致），但不播点击回应动画——
     // 叫醒的表现由 /wake 写回的 sleep 叶子驱动（end 播一遍，播完回随机链）。
     // 这里直接压当前前台那一帧：平时靠 pendingSquash 等新动画就位，这条路没有换源。

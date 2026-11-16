@@ -125,6 +125,11 @@ class PetSprite {
     this.stopThrow();
     this.stopDragFollow();
     this.stopSquash();
+    if (this._spineClipTimer != null) {
+      window.clearTimeout(this._spineClipTimer);
+      this._spineClipTimer = null;
+    }
+    this._spineExternalClip = false;
     this.stopMove();
     this.el.remove();
   }
@@ -237,6 +242,7 @@ class PetSprite {
     this.space = null;
     if (this.dragState.active || this.throwRef !== null) return;
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     if (!this.pos) {
       // 还没摆过位（position() 首次调用前）：没有旧位置可守恒，直接按新几何定位
       this.position();

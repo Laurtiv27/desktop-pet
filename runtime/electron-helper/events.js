@@ -72,6 +72,7 @@ PetSprite.prototype.onWorkTick = function onWorkTick(snapshot, tick) {
       name,
   );
   this.stopMove();
+  this.cancelPlan('user');
   // 气泡文本：任务详情优先，否则从条目级 workStatusTexts[档位] 随机抽一句；整档缺失则只播动画。
   const textGroup = Array.isArray(this.pet.workStatusTexts) ? this.pet.workStatusTexts[idx] : undefined;
   const configuredText =
@@ -211,6 +212,7 @@ PetSprite.prototype.showWhisper = function showWhisper(text, image, url, duratio
   // 睡觉：气泡照弹（拒绝台词就是这么来的），动画不换——自动来源不该打断睡姿（睡姿循环归睡觉状态机）。
   if (name !== null && !this.sleeping) {
     this.stopMove();
+    this.cancelPlan('user');
     this.playOnce(name);
   }
   if (duration === 0) return;
@@ -259,6 +261,7 @@ PetSprite.prototype.showBalanceNow = function showBalanceNow(state, manual) {
   }
   const name = S.pickSlot(slot, this.anim); // 数组槽位档内随机抽 1，且避开当前正播动画（避免连续重复，与浏览器一致）
   this.stopMove();
+  this.cancelPlan('user');
   this.playOnce(name);
 };
 

@@ -140,7 +140,17 @@ function loadHarness(opts = {}) {
     if (fn) fn();
   }
 
-  return { sprite, runner, plays, sandbox, flushTimers, tickRaf, get raf() { return raf; } };
+  return {
+    sprite,
+    runner,
+    plays,
+    sandbox,
+    flushTimers,
+    tickRaf,
+    get raf() {
+      return raf;
+    },
+  };
 }
 
 describe('createBehaviorRunner.submitIntent', () => {
@@ -260,6 +270,32 @@ describe('createBehaviorRunner.submitIntent', () => {
     );
   });
 
+  test('arrive 进行中点击路径 stopMove+cancelPlan 后，下一次 roam 可以提交', () => {
+    const { sprite, runner, flushTimers } = loadHarness({ roamMinMs: 30, roamMaxMs: 30, random: () => 0.4 });
+    runner.startRoam();
+    assert.equal(runner.currentPriority, 10);
+    assert.ok(runner.currentPlan.steps.some((step) => step.until === 'arrive'));
+    sprite.stopMove();
+    assert.equal(runner.currentPriority, 10, 'stopMove 单独不能清计划');
+    runner.cancelPlan('user');
+    assert.equal(runner.currentPlan, null);
+    flushTimers(30);
+    assert.equal(runner.currentPlan && runner.currentPlan.source, 'roam');
+    assert.equal(runner.currentPriority, 10);
+  });
+
+  test('未解析的 spine.meta 经 parseSpineMeta 后仍能漫游', () => {
+    const { sprite, runner, plays } = loadHarness();
+    sprite.pet.spine.meta = { clips: { idle: 'Idle', walk: 'Walk', extra: 1 }, walkSpeedPx: 'nope' };
+    const ok = runner.submitIntent({
+      source: 'roam',
+      goal: { xRatio: 0.8, yRatio: 0.5 },
+      sequence: [{ clip: 'idle', until: 'duration', durationMs: 40 }],
+    });
+    assert.equal(ok, true);
+    assert.equal(plays[0].clip, 'Walk');
+  });
+
   test('缺少 clips.walk 且 goal 远时 submitIntent 失败且不启动位移', () => {
     const { sprite, runner, plays } = loadHarness();
     sprite.pet.spine.meta.clips = { idle: 'Idle' };
@@ -300,6 +336,23 @@ describe('规则漫游', () => {
       runner.currentPlan.steps.some((s) => s.until === 'arrive'),
       false,
     );
+  });
+});
+
+describe('菜单与外部片段不抢漫游', () => {
+  test('menuOpen 或外部骨骼片段期间不提交，放开后定时器可以提交', () => {
+    const { sprite, runner, flushTimers } = loadHarness({ roamMinMs: 25, roamMaxMs: 25 });
+    sprite.menuOpen = true;
+    runner.startRoam();
+    flushTimers(25);
+    assert.equal(runner.currentPlan, null, '菜单开着时不得提交 roam');
+    sprite.menuOpen = false;
+    sprite._spineExternalClip = true;
+    flushTimers(25);
+    assert.equal(runner.currentPlan, null, '外部片段未结束时不得提交 roam');
+    sprite._spineExternalClip = false;
+    flushTimers(25);
+    assert.equal(runner.currentPlan && runner.currentPlan.source, 'roam');
   });
 });
 
@@ -352,5 +405,21 @@ describe('接入点源码守卫', () => {
     const freezeOn = freeze.slice(0, freeze.indexOf('占用锁解除'));
     assert.match(freezeOn, /this\.stopMove\(\)/);
     assert.match(freezeOn, /this\.cancelPlan\(\s*['"]user['"]\s*\)/);
+  });
+
+  test('点击与进睡在 stopMove 之外 cancelPlan，stopMove 本体不取消计划', () => {
+    const input = readFileSync(inputPath, 'utf8');
+    const playback = readFileSync(playbackPath, 'utf8');
+    const motion = readFileSync(motionPath, 'utf8');
+    const click = input.slice(input.indexOf('onClick(e)'), input.indexOf('onDragOverImage'));
+    assert.match(click, /this\.stopMove\(\)/);
+    assert.match(click, /this\.cancelPlan\(\s*['"]user['"]\s*\)/);
+    const sleep = playback.slice(playback.indexOf('setSleep(state)'), playback.indexOf('postSleepAction'));
+    assert.match(sleep, /this\.stopMove\(\)/);
+    assert.match(sleep, /this\.cancelPlan\(\s*['"]user['"]\s*\)/);
+    const stopMove = motion.slice(motion.indexOf('stopMove() {'), motion.indexOf('stopDragFollow'));
+    assert.equal(/cancelPlan/.test(stopMove), false);
+    assert.match(playback, /_spineExternalClip/);
+    assert.match(playback, /SPINE_CLIP_END_MS/);
   });
 });

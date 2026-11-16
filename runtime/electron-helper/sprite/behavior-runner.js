@@ -15,8 +15,22 @@ const ROAM_IDLE_MS = 2000;
 const CLIP_END_FALLBACK_MS = 1500;
 const ROAM_MARGIN = 0.12;
 
+/**
+ * 漫游只读配置里的 `pet.spine.meta`（经 parseSpineMeta）。
+ * 磁盘 `assets/spine/<id>/meta.json` 尚未加载；没有配置内 meta 时 clips 为空。
+ */
+function spineMetaOf(sprite) {
+  const raw = sprite.pet && sprite.pet.spine && sprite.pet.spine.meta;
+  if (!raw || typeof raw !== 'object') return null;
+  if (typeof S.parseSpineMeta === 'function') {
+    const parsed = S.parseSpineMeta(raw);
+    if (parsed) return parsed;
+  }
+  return raw;
+}
+
 function clipsOf(sprite) {
-  const meta = sprite.pet && sprite.pet.spine && sprite.pet.spine.meta;
+  const meta = spineMetaOf(sprite);
   const clips = meta && meta.clips;
   return clips && typeof clips === 'object' ? clips : {};
 }
@@ -36,7 +50,7 @@ function allowedClipsOf(sprite) {
 }
 
 function walkSpeedPxOf(sprite) {
-  const meta = sprite.pet && sprite.pet.spine && sprite.pet.spine.meta;
+  const meta = spineMetaOf(sprite);
   if (meta && Number.isFinite(meta.walkSpeedPx) && meta.walkSpeedPx > 0) return meta.walkSpeedPx;
   return S.DEFAULT_WALK_SPEED_PX || 120;
 }
@@ -79,7 +93,8 @@ function createBehaviorRunner(sprite, opts) {
   const random = opts && typeof opts.random === 'function' ? opts.random : Math.random;
   const roamMinMs = opts && Number.isFinite(opts.roamMinMs) ? opts.roamMinMs : ROAM_MIN_MS;
   const roamMaxMs = opts && Number.isFinite(opts.roamMaxMs) ? opts.roamMaxMs : ROAM_MAX_MS;
-  const clipEndMs = opts && Number.isFinite(opts.clipEndMs) && opts.clipEndMs > 0 ? opts.clipEndMs : CLIP_END_FALLBACK_MS;
+  const clipEndMs =
+    opts && Number.isFinite(opts.clipEndMs) && opts.clipEndMs > 0 ? opts.clipEndMs : CLIP_END_FALLBACK_MS;
 
   const runner = {
     currentPlan: null,
@@ -191,9 +206,7 @@ function createBehaviorRunner(sprite, opts) {
       current: currentRatioOf(sprite),
     });
     if (!planned.ok) {
-      console.warn(
-        '[dsh-pet] planBehavior 失败 pet=' + (sprite.pet && sprite.pet.id) + '：' + planned.reason,
-      );
+      console.warn('[dsh-pet] planBehavior 失败 pet=' + (sprite.pet && sprite.pet.id) + '：' + planned.reason);
       return false;
     }
     const myToken = bumpToken();
@@ -214,6 +227,8 @@ function createBehaviorRunner(sprite, opts) {
   function submitRoam() {
     if (sprite.frozen || sprite.sleeping) return;
     if (sprite.dragState && sprite.dragState.active) return;
+    // 菜单开着、或骨骼一次性/外部片段还在播：这次不抢画面。定时器照常排下一次。
+    if (sprite.menuOpen || sprite._spineExternalClip) return;
     const intent = {
       source: 'roam',
       sequence: [{ clip: 'idle', until: 'duration', durationMs: ROAM_IDLE_MS }],
@@ -236,7 +251,11 @@ function createBehaviorRunner(sprite, opts) {
   }
 
   function startRoam() {
-    if (runner._roamStarted) return;
+    if (runner._roamStarted) {
+      // playIdle 在打断之后会再进来：计划已空就立刻补一次，不必干等下一次定时器。
+      if (!runner.currentPlan) submitRoam();
+      return;
+    }
     runner._roamStarted = true;
     submitRoam();
     scheduleNextRoam();

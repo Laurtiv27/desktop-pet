@@ -7,6 +7,9 @@
  */
 'use strict';
 
+/** 骨骼 stub 没有 video.ended。一次性片段用此时长交给 handleEnded（睡觉 start→loop 也走这里）。 */
+const SPINE_CLIP_END_MS = 1500;
+
 Object.assign(PetSprite.prototype, {
   switchTo(next, nextOnce, playbackId, url) {
     if (!next) return;
@@ -127,6 +130,13 @@ Object.assign(PetSprite.prototype, {
    * 加载是同步的（stub 立刻出画），所以直接维护 this.anim / this.playback，不经 pending/gen。
    */
   playSpinePresentation(next, nextOnce, playbackId) {
+    // 外部片段（点击/菜单/睡觉/事件）占用画面期间，漫游定时器不得把 clip 顶掉。
+    this._spineExternalClip = true;
+    if (this._spineClipTimer != null) {
+      window.clearTimeout(this._spineClipTimer);
+      this._spineClipTimer = null;
+    }
+    const token = (this._spineClipToken = (this._spineClipToken || 0) + 1);
     const clips = this.pet.spine && this.pet.spine.meta && this.pet.spine.meta.clips;
     const mapped = S.mapPresentationClip(next, clips);
     if (this.presentation) {
@@ -146,6 +156,13 @@ Object.assign(PetSprite.prototype, {
     }
     // 骨骼位移由后续速度驱动接管；此处不拿 video.duration 开 startMoveDrive。
     this.pendingMove = null;
+    if (!nextOnce) return;
+    this._spineClipTimer = window.setTimeout(() => {
+      this._spineClipTimer = null;
+      if (token !== this._spineClipToken) return;
+      if (this.anim !== next) return;
+      this.handleEnded();
+    }, SPINE_CLIP_END_MS);
   },
 
   // 直接播一个外部地址。单独一个方法、不复用 onMenuAction：那套是菜单语义（文字类强制朝左的镜像
@@ -153,6 +170,7 @@ Object.assign(PetSprite.prototype, {
   // 地址本身同时是 pending 的防重键与日志标识。
   playUrlOnce(url, playbackId) {
     this.stopMove();
+    this.cancelPlan('user');
     this.playOnce(url, playbackId, url);
   },
 
@@ -246,6 +264,7 @@ Object.assign(PetSprite.prototype, {
       }
       this.sleepPhase = 'end';
       this.stopMove();
+      this.cancelPlan('user');
       this.playOnce(this.sleepSet.end);
       console.log(stamp + ' 醒来：播 ' + this.sleepSet.end + ' 一遍');
       return;
@@ -256,6 +275,7 @@ Object.assign(PetSprite.prototype, {
     this.sleepSet = { start: state.start, loop: state.loop, end: state.end };
     this.sleepPhase = 'start';
     this.stopMove();
+    this.cancelPlan('user');
     // 与占用锁同一口径：进睡就把任务状态气泡收掉（醒来不补亮，等下一次状态变化再对齐）
     if (this.workTimer !== null) window.clearTimeout(this.workTimer);
     this.workTimer = null;
@@ -288,6 +308,9 @@ Object.assign(PetSprite.prototype, {
     if (this.sleeping) return;
     this.stopMove();
     if (this.presentationKind === 'spine') {
+      // 外部片段结束才回到漫游。cancelPlan 放在 stopMove 外面：塞进 stopMove 会和 startRoam 递归。
+      this._spineExternalClip = false;
+      this.cancelPlan('user');
       this.startRoam();
       return;
     }
