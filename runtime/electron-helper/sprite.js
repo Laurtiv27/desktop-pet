@@ -113,6 +113,10 @@ class PetSprite {
       this.chatMount = null;
     }
     this.closeMenu();
+    if (this.presentation) {
+      this.presentation.dispose();
+      this.presentation = null;
+    }
     this.stopThrow();
     this.stopDragFollow();
     this.stopSquash();
@@ -128,6 +132,7 @@ class PetSprite {
     const value = next === 'right' ? 'right' : 'left';
     if (this._facing === value) return;
     this._facing = value;
+    if (this.presentation) this.presentation.setFacing(value);
     this.markPoseDirty();
   }
 

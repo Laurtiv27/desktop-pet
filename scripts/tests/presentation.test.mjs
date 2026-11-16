@@ -180,3 +180,31 @@ describe('sprite 脚本加载顺序', () => {
     assert.ok(factory > stub, 'presentation.js 应在 stub 之后');
   });
 });
+
+describe('PetSprite 按 presentation 分支', () => {
+  const playbackSrc = readFileSync(join(root, 'runtime/electron-helper/sprite/playback.js'), 'utf8');
+  const initSrc = readFileSync(join(root, 'runtime/electron-helper/sprite/init.js'), 'utf8');
+
+  test('spine 早退走 presentation.play；video 双缓冲换源仍在其后', () => {
+    const spineIdx = playbackSrc.indexOf("this.presentationKind === 'spine'");
+    const playIdx = playbackSrc.indexOf('this.presentation.play(mapped');
+    const srcIdx = playbackSrc.indexOf('el.src = url || this.assetBase');
+    const loadIdx = playbackSrc.indexOf('el.load()');
+    const videoPlayIdx = playbackSrc.indexOf('el.play()');
+    assert.ok(spineIdx >= 0, 'switchTo 应判断 spine');
+    assert.ok(playIdx > spineIdx, 'spine 应调用 presentation.play');
+    assert.ok(srcIdx > spineIdx, 'video 换源应在 spine 早退之后');
+    assert.ok(loadIdx > srcIdx, 'video 仍 el.load()');
+    assert.ok(videoPlayIdx > loadIdx, 'video 仍 el.play()');
+  });
+
+  test('init：spine 挂 createPresentation，video 仍建 videoA/B', () => {
+    assert.match(initSrc, /S\.resolvePetPlaybackSetup\(pet\)/);
+    assert.match(initSrc, /createPresentation\('spine'/);
+    assert.match(initSrc, /this\.videoA = document\.createElement\('video'\)/);
+    assert.match(initSrc, /this\.videoB = document\.createElement\('video'\)/);
+    const spineMount = initSrc.indexOf("createPresentation('spine'");
+    const videoA = initSrc.indexOf("this.videoA = document.createElement('video')");
+    assert.ok(spineMount >= 0 && videoA > spineMount, 'video 元素创建应在 spine 分支的 else 里');
+  });
+});

@@ -9,11 +9,14 @@
 
 Object.assign(PetSprite.prototype, {
   initPlayback(pet) {
-    // 动画池与权重由拍平层按条目注入（renderer 的 S.flattenConfigPets），条目缺 animations 就是配置不全：
-    // 明确报错交给 boot 的红条与 5s 重试，绝不回落到没有定义的全局（那只会变成一句 ReferenceError）。
-    if (!pet.animations) throw new Error('宠物缺少 animations 段：' + String(pet.id ?? ''));
-    this.animations = pet.animations;
+    // 动画池与权重由拍平层按条目注入（renderer 的 S.flattenConfigPets）。
+    // video 缺 animations 仍报错（boot 红条 + 5s 重试）；spine 缺 animations 用最小 idle 桩，避免菜单/随机链炸掉。
+    const setup = S.resolvePetPlaybackSetup(pet);
+    this.presentationKind = setup.kind;
+    this.presentation = null;
+    this.animations = setup.animations;
     this.weights = pet.animationWeights;
+    if (!this.weights && setup.usedStub) this.weights = { idle: 100, turn: 0, move: 0 };
     this.front = 0; // 0 = A, 1 = B
     this.pending = null;
     this.gen = 0;
@@ -149,14 +152,22 @@ Object.assign(PetSprite.prototype, {
     stage.className = 'pet-stage';
     // 位移恒定：拖拽中也不取消，否则视频会相对光标上跳、抓取点全程偏移 bottomPad。
     stage.style.transform = 'translateY(' + this.bottomPad + 'px)';
-    this.videoA = document.createElement('video');
-    this.videoA.className = 'pet-video is-front';
-    this.videoB = document.createElement('video');
-    this.videoB.className = 'pet-video';
-    for (const v of [this.videoA, this.videoB]) {
-      v.muted = true;
-      v.playsInline = true;
-      v.autoplay = true;
+    if (this.presentationKind === 'spine') {
+      // 骨骼：只挂 presentation（stub / 日后 webgl），不建 video，避免双表现。
+      this.videoA = null;
+      this.videoB = null;
+      this.presentation = createPresentation('spine', { pet: this.pet });
+      if (this.presentation) this.presentation.mount(stage);
+    } else {
+      this.videoA = document.createElement('video');
+      this.videoA.className = 'pet-video is-front';
+      this.videoB = document.createElement('video');
+      this.videoB.className = 'pet-video';
+      for (const v of [this.videoA, this.videoB]) {
+        v.muted = true;
+        v.playsInline = true;
+        v.autoplay = true;
+      }
     }
     this.hit = document.createElement('div');
     this.hit.className = 'pet-hit';
@@ -186,8 +197,8 @@ Object.assign(PetSprite.prototype, {
     this.tip.className = S.TOOLTIP_CLASS;
     this.tip.setAttribute('aria-hidden', 'true');
 
-    stage.appendChild(this.videoA);
-    stage.appendChild(this.videoB);
+    if (this.videoA) stage.appendChild(this.videoA);
+    if (this.videoB) stage.appendChild(this.videoB);
     stage.appendChild(this.hit);
     this.el.appendChild(this.bubble);
     this.el.appendChild(this.tip);

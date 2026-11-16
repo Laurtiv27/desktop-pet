@@ -14,6 +14,10 @@ Object.assign(PetSprite.prototype, {
     // 交给调用方维护时 switchTo(x, false) 会留下过期值，events.js 判「是不是工作动画」就永远不成立。
     this.anim = next;
     this.once = !nextOnce;
+    if (this.presentationKind === 'spine') {
+      this.playSpinePresentation(next, nextOnce, playbackId);
+      return;
+    }
     const pending = this.pending;
     if (pending && pending.anim === next && pending.once === nextOnce) {
       // 防重命中（单动画点击时目标=当前动画，不重播）：仍消费 Q 弹标记，压当前前台视频，
@@ -116,6 +120,32 @@ Object.assign(PetSprite.prototype, {
 
   playOnce(name, playbackId, url) {
     this.switchTo(name, true, playbackId, url);
+  },
+
+  /**
+   * 骨骼表现层换 clip：不走 videoA/B 双缓冲。mappedClip 经 meta.clips 槽位映射。
+   * 加载是同步的（stub 立刻出画），所以直接维护 this.anim / this.playback，不经 pending/gen。
+   */
+  playSpinePresentation(next, nextOnce, playbackId) {
+    const clips = this.pet.spine && this.pet.spine.meta && this.pet.spine.meta.clips;
+    const mapped = S.mapPresentationClip(next, clips);
+    if (this.presentation) {
+      this.presentation.play(mapped, { loop: !nextOnce });
+      this.presentation.setFacing(this.facing === 'right' ? 'right' : 'left');
+    }
+    if (this.playback && this.playback !== playbackId) {
+      this.reportPlayback(this.playback, 'cancelled', 'superseded');
+    }
+    this.pending = null;
+    this.playback = playbackId || null;
+    if (playbackId) this.reportPlayback(playbackId, 'playing');
+    if (this.pendingSquash) {
+      this.pendingSquash = false;
+      const el = this.front === 0 ? this.videoA : this.videoB;
+      if (el) this.startSquash(el);
+    }
+    // 骨骼位移由后续速度驱动接管；此处不拿 video.duration 开 startMoveDrive。
+    this.pendingMove = null;
   },
 
   // 直接播一个外部地址。单独一个方法、不复用 onMenuAction：那套是菜单语义（文字类强制朝左的镜像

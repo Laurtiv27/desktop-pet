@@ -4768,6 +4768,226 @@ async function playManual(text, onPhase) {
 }
 
 //#endregion
+//#region src/shared/behavior/types.ts
+const INTENT_PRIORITY = {
+	user: 100,
+	menu: 100,
+	posture: 50,
+	ai: 30,
+	roam: 10
+};
+
+//#endregion
+//#region src/shared/behavior/spine-meta.ts
+const DEFAULT_WALK_SPEED_PX = 120;
+const CLIP_SLOTS$1 = [
+	"idle",
+	"walk",
+	"turn",
+	"sit",
+	"wave",
+	"happy",
+	"drag"
+];
+function isClipSlot(key) {
+	return CLIP_SLOTS$1.includes(key);
+}
+function parseSpineMeta(raw) {
+	if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+	const record = raw;
+	if (typeof record.clips !== "object" || record.clips === null || Array.isArray(record.clips)) return null;
+	const clipsIn = record.clips;
+	const clips = {};
+	let hasStringClip = false;
+	for (const [key, value] of Object.entries(clipsIn)) {
+		if (typeof value !== "string") continue;
+		hasStringClip = true;
+		if (isClipSlot(key)) clips[key] = value;
+	}
+	if (!hasStringClip) return null;
+	let defaultSkin = "default";
+	if (typeof record.defaultSkin === "string" && record.defaultSkin.length > 0) defaultSkin = record.defaultSkin;
+	let walkSpeedPx = DEFAULT_WALK_SPEED_PX;
+	if (typeof record.walkSpeedPx === "number" && Number.isFinite(record.walkSpeedPx) && record.walkSpeedPx > 0) walkSpeedPx = record.walkSpeedPx;
+	return {
+		clips,
+		walkSpeedPx,
+		defaultSkin
+	};
+}
+
+//#endregion
+//#region src/shared/behavior/pet-presentation.ts
+function normalizePresentation(raw) {
+	return raw === "spine" ? "spine" : "video";
+}
+function resolvePetPresentation(pet) {
+	return normalizePresentation(pet.presentation);
+}
+function choosePlaybackBackend(presentation) {
+	return normalizePresentation(presentation);
+}
+function createSpineAnimationStub(clips) {
+	let idle = "idle";
+	if (clips && typeof clips === "object" && !Array.isArray(clips)) {
+		const idleVal = clips.idle;
+		if (typeof idleVal === "string" && idleVal.length > 0) idle = idleVal;
+	}
+	return {
+		idle: [idle],
+		turn: [],
+		drag: [],
+		clicks: [],
+		moves: {
+			default: {},
+			actions: []
+		},
+		categories: [],
+		events: {}
+	};
+}
+function mapPresentationClip(clip, clips) {
+	if (!clips) return clip;
+	const mapped = clips[clip];
+	return typeof mapped === "string" && mapped.length > 0 ? mapped : clip;
+}
+function resolvePetPlaybackSetup(pet) {
+	const kind = choosePlaybackBackend(pet.presentation);
+	if (pet.animations) return {
+		kind,
+		animations: pet.animations,
+		usedStub: false
+	};
+	if (kind === "spine") return {
+		kind,
+		animations: createSpineAnimationStub(pet.spine?.meta?.clips),
+		usedStub: true
+	};
+	throw new Error("宠物缺少 animations 段：" + String(pet.id ?? ""));
+}
+
+//#endregion
+//#region src/shared/behavior/validate-intent.ts
+function isUnitRatio(value) {
+	return Number.isFinite(value) && value >= 0 && value <= 1;
+}
+function validateIntent(intent, allowedClips) {
+	if (intent.sequence.length === 0) return {
+		ok: false,
+		reason: "动作序列为空"
+	};
+	if (intent.goal !== void 0) {
+		const { xRatio, yRatio } = intent.goal;
+		if (!isUnitRatio(xRatio) || !isUnitRatio(yRatio)) return {
+			ok: false,
+			reason: "目标坐标越界"
+		};
+	}
+	for (const step of intent.sequence) {
+		if (!allowedClips.has(step.clip)) return {
+			ok: false,
+			reason: `未知动作: ${step.clip}`
+		};
+		if (step.until === "duration") {
+			const ms = step.durationMs;
+			if (ms === void 0 || !Number.isFinite(ms) || ms <= 0) return {
+				ok: false,
+				reason: "时长无效"
+			};
+		}
+	}
+	return {
+		ok: true,
+		intent
+	};
+}
+
+//#endregion
+//#region src/shared/behavior/planner.ts
+const CLIP_SLOTS = [
+	"idle",
+	"walk",
+	"turn",
+	"sit",
+	"wave",
+	"happy",
+	"drag"
+];
+const DEFAULT_ARRIVE_THRESHOLD = .01;
+function isClipSlotKey(clip) {
+	return CLIP_SLOTS.includes(clip);
+}
+function resolveClipName(clip, clips) {
+	if (isClipSlotKey(clip)) {
+		const mapped = clips[clip];
+		if (mapped !== void 0) return mapped;
+	}
+	return clip;
+}
+function distanceRatio(a, b) {
+	const dx = a.xRatio - b.xRatio;
+	const dy = a.yRatio - b.yRatio;
+	return Math.hypot(dx, dy);
+}
+function sequenceHasArriveWalk(intent, walkClip, clips) {
+	return intent.sequence.some((step) => step.until === "arrive" && resolveClipName(step.clip, clips) === walkClip);
+}
+function mapSequenceStep(step, clips, goal) {
+	const until = step.until ?? "clip-end";
+	const mapped = {
+		clip: resolveClipName(step.clip, clips),
+		loop: step.loop ?? false,
+		until
+	};
+	if (step.durationMs !== void 0) mapped.durationMs = step.durationMs;
+	if (until === "arrive" && goal !== void 0) mapped.goal = goal;
+	return mapped;
+}
+function planBehavior(input) {
+	const validated = validateIntent(input.intent, input.allowedClips);
+	if (!validated.ok) return validated;
+	const intent = validated.intent;
+	const threshold = input.arriveThreshold ?? DEFAULT_ARRIVE_THRESHOLD;
+	const steps = [];
+	const goal = intent.goal;
+	if (goal !== void 0) {
+		const needsWalk = distanceRatio(input.current, goal) > threshold && !sequenceHasArriveWalk(intent, input.walkClip, input.clips);
+		if (needsWalk) {
+			if (!input.hasWalkClip) return {
+				ok: false,
+				reason: "缺少走路动作"
+			};
+			steps.push({
+				clip: input.walkClip,
+				loop: true,
+				until: "arrive",
+				goal
+			});
+		}
+	}
+	for (const step of intent.sequence) steps.push(mapSequenceStep(step, input.clips, goal));
+	const plan = {
+		steps,
+		facing: intent.facing ?? "keep",
+		priority: intent.priority ?? INTENT_PRIORITY[intent.source],
+		source: intent.source
+	};
+	return {
+		ok: true,
+		plan
+	};
+}
+
+//#endregion
+//#region src/shared/behavior/priority.ts
+function resolveIntentPriority(intent) {
+	return intent.priority ?? INTENT_PRIORITY[intent.source];
+}
+function canInterrupt(currentPriority, next) {
+	return resolveIntentPriority(next) > currentPriority;
+}
+
+//#endregion
 exports.ACCEL_GAIN_MAX = ACCEL_GAIN_MAX
 exports.ACCEL_REF = ACCEL_REF
 exports.ANIMATION_EXT = ANIMATION_EXT
@@ -4789,6 +5009,7 @@ exports.DEFAULT_FONT = DEFAULT_FONT
 exports.DEFAULT_PHYSICS = DEFAULT_PHYSICS
 exports.DEFAULT_ROLLING_LABEL = DEFAULT_ROLLING_LABEL
 exports.DEFAULT_THROW_POWER = DEFAULT_THROW_POWER
+exports.DEFAULT_WALK_SPEED_PX = DEFAULT_WALK_SPEED_PX
 exports.DISPLAY_HOTKEY_HINTS = DISPLAY_HOTKEY_HINTS
 exports.DISPLAY_ORDER = DISPLAY_ORDER
 exports.DRAG_THRESHOLD = DRAG_THRESHOLD
@@ -4801,6 +5022,7 @@ exports.GRAVITY = GRAVITY
 exports.GROUND_FRICTION = GROUND_FRICTION
 exports.HANDLERS = HANDLERS
 exports.HIT_BOX = HIT_BOX
+exports.INTENT_PRIORITY = INTENT_PRIORITY
 exports.MAX_BODY = MAX_BODY
 exports.MAX_STEP_DT = MAX_STEP_DT
 exports.MAX_THROW_SPEED = MAX_THROW_SPEED
@@ -4869,6 +5091,8 @@ exports.bubbleTopMarginPx = bubbleTopMarginPx
 exports.buildMemeBranch = buildMemeBranch
 exports.buildMenuTree = buildMenuTree
 exports.buildMoreBranch = buildMoreBranch
+exports.canInterrupt = canInterrupt
+exports.choosePlaybackBackend = choosePlaybackBackend
 exports.clampPointInRect = clampPointInRect
 exports.clampPointToRegion = clampPointToRegion
 exports.clickScore = clickScore
@@ -4876,6 +5100,7 @@ exports.collidePet = collidePet
 exports.createHearHold = createHearHold
 exports.createMemeImage = createMemeImage
 exports.createMemeImageFromUrl = createMemeImageFromUrl
+exports.createSpineAnimationStub = createSpineAnimationStub
 exports.createTodoPanel = createTodoPanel
 exports.customClickable = customClickable
 exports.customViews = customViews
@@ -4914,6 +5139,7 @@ exports.isVoiceNotifyEnabled = isVoiceNotifyEnabled
 exports.isWebVisible = isWebVisible
 exports.landingSquash = landingSquash
 exports.loadTodos = loadTodos
+exports.mapPresentationClip = mapPresentationClip
 exports.memeImageUrl = memeImageUrl
 exports.memeThumbUrl = memeThumbUrl
 exports.metaLabel = metaLabel
@@ -4923,8 +5149,10 @@ exports.mountPrefixOf = mountPrefixOf
 exports.mountScorePopup = mountScorePopup
 exports.nearestIndex = nearestIndex
 exports.nextWorkStatusAnim = nextWorkStatusAnim
+exports.normalizePresentation = normalizePresentation
 exports.overlapPush = overlapPush
 exports.parseDateTimeLocal = parseDateTimeLocal
+exports.parseSpineMeta = parseSpineMeta
 exports.parseTodoItem = parseTodoItem
 exports.parseTodoList = parseTodoList
 exports.patchTodo = patchTodo
@@ -4933,6 +5161,7 @@ exports.pickCategoryAction = pickCategoryAction
 exports.pickSleepSet = pickSleepSet
 exports.pickSlot = pickSlot
 exports.pickWeightedCategory = pickWeightedCategory
+exports.planBehavior = planBehavior
 exports.planMove = planMove
 exports.playSayVoice = playSayVoice
 exports.pointInRect = pointInRect
@@ -4962,7 +5191,10 @@ exports.remainingLabel = remainingLabel
 exports.removeTodo = removeTodo
 exports.resetInText = resetInText
 exports.resolveFontPx = resolveFontPx
+exports.resolveIntentPriority = resolveIntentPriority
 exports.resolveLeafPath = resolveLeafPath
+exports.resolvePetPlaybackSetup = resolvePetPlaybackSetup
+exports.resolvePetPresentation = resolvePetPresentation
 exports.resolveRect = resolveRect
 exports.rollKind = rollKind
 exports.routePathOf = routePathOf
@@ -5004,6 +5236,7 @@ exports.trimTrail = trimTrail
 exports.truncate = truncate
 exports.urgentWindow = urgentWindow
 exports.utteranceToHold = utteranceToHold
+exports.validateIntent = validateIntent
 exports.whisperBubbleView = whisperBubbleView
 exports.windowsHandler = windowsHandler
 return exports;
