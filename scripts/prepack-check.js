@@ -83,7 +83,12 @@ const required = [
   'runtime/electron-helper/sprite/menu.js', // 桌面模式右键菜单（sprite.js 的原型扩展，须在其后加载）
   'runtime/electron-helper/sprite/playback.js', // 桌面模式播放状态机（同上）
   'runtime/electron-helper/sprite/presentation-spine-stub.js', // 骨骼表现层 Canvas 占位（须在 presentation.js 前加载）
+  'runtime/electron-helper/sprite/presentation-spine.js', // 真·Spine WebGL 表现层（依赖 vendor/spine-webgl.iife.js）
+  'runtime/electron-helper/vendor/spine-webgl.iife.js', // Spine runtime IIFE（本地验证；发行授权另议）
   'runtime/electron-helper/sprite/presentation.js', // 桌面模式表现层工厂（playback 之后、video 仍走现有路径）
+  'runtime/electron-helper/spine-demo/spineboy-pro.skel', // 本地可见验证用示例角色（勿当正式发行素材）
+  'runtime/electron-helper/spine-demo/spineboy-pma.atlas',
+  'runtime/electron-helper/spine-demo/spineboy-pma.png',
   'runtime/electron-helper/sprite/motion.js', // 桌面模式运动驱动（同上）
   'runtime/electron-helper/sprite/behavior-runner.js', // 桌面模式行为执行器与规则漫游（presentation / motion 之后）
   'runtime/electron-helper/sprite/input.js', // 桌面模式指针与命中（同上）

@@ -105,7 +105,9 @@ const scriptGlobals = {
   playClickSound: 'readonly',
   // sprite/presentation-spine-stub.js、sprite/presentation.js
   createSpineStubPresentation: 'readonly',
+  createSpineWebglPresentation: 'readonly',
   createPresentation: 'readonly',
+  spine: 'readonly',
   // sprite/behavior-runner.js
   createBehaviorRunner: 'readonly',
   // events.js
@@ -115,7 +117,10 @@ const scriptGlobals = {
 export default defineConfig([
   {
     // MediaPipe 官方包原样拷入，不是本仓库脚本。
-    ignores: ['runtime/electron-helper/posture/vendor/**'],
+    ignores: [
+      'runtime/electron-helper/posture/vendor/**',
+      'runtime/electron-helper/vendor/**', // Spine 等第三方 IIFE，不跑 no-undef
+    ],
   },
   {
     files: ['runtime/electron-helper/**/*.js'],

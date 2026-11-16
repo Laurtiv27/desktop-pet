@@ -332,6 +332,15 @@
           transition: none;
         }
       }
+      canvas.pet-spine,
+      canvas.pet-spine-stub {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        pointer-events: none;
+      }
     </style>
   </head>
   <body>
@@ -356,7 +365,9 @@
     <script src="./sprite/window-fit.js"></script>
     <script src="./sprite/init.js"></script>
     <script src="./sprite/playback.js"></script>
+    <script src="./vendor/spine-webgl.iife.js"></script>
     <script src="./sprite/presentation-spine-stub.js"></script>
+    <script src="./sprite/presentation-spine.js"></script>
     <script src="./sprite/presentation.js"></script>
     <script src="./sprite/motion.js"></script>
     <script src="./sprite/behavior-runner.js"></script>
