@@ -146,13 +146,14 @@ function createSpineWebglPresentation(opts) {
     if (!skeleton || !canvas) return;
     const w = canvas.width;
     const h = canvas.height;
-    // spineboy 默认朝右；桌宠 left = 朝左 → 负 scaleX
-    const fit = Math.min(w, h) / 420;
+    // SceneRenderer 的 OrthoCamera 以 (0,0) 为中心、Y 轴向上；不要用左上角像素坐标。
+    const fit = Math.min(w, h) / 380;
     const sx = facing === 'left' ? -fit : fit;
     skeleton.scaleX = sx;
     skeleton.scaleY = Math.abs(fit);
-    skeleton.x = w * 0.5;
-    skeleton.y = h * 0.92;
+    skeleton.x = 0;
+    // 脚底略低于中心，让全身落在视口内
+    skeleton.y = -h * 0.28;
   }
 
   function tick(now) {
