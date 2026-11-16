@@ -1234,6 +1234,66 @@ describe('readAllConfig —— 宠物固定合并（缺失取默认 / 非法回�
   });
 });
 
+describe('readAllConfig / saveUserConfig —— 三维演示字段 presentation 与 model3d', () => {
+  const meta = {
+    clips: { idle: 'Survey', walk: 'Walk' },
+    autoBehavior: false,
+    glb: 'Fox.glb',
+  };
+  const demo = {
+    ...BASE.pets[0],
+    id: 'model3d-demo',
+    name: '小狐狸',
+    display: 'desktop',
+    fixedEnabled: true,
+    presentation: 'model3d',
+    model3d: { assetId: 'model3d-demo', meta },
+  };
+
+  test('用户层显式写入后合并保留；没写的宠物不凭空多出 presentation', () => {
+    const merged = readAllConfig(withBase({}, { pets: [BASE.pets[0], demo] }));
+    const pets = merged.main.pets as Record<string, unknown>[];
+    const maid = pets.find((p) => p.id === 'main');
+    const fox = pets.find((p) => p.id === 'model3d-demo');
+    assert.equal('presentation' in (maid ?? {}), false);
+    assert.equal(fox?.presentation, 'model3d');
+    assert.equal(fox?.fixedEnabled, true);
+    assert.equal(fox?.display, 'desktop');
+    assert.deepEqual((fox?.model3d as { meta: unknown }).meta, meta);
+  });
+
+  test('非法 presentation / model3d 丢弃，宠物本身仍在', () => {
+    const merged = readAllConfig(
+      withBase({}, { pets: [{ ...BASE.pets[0], presentation: 'hologram', model3d: 'Fox.glb' }] }),
+    );
+    const pet = (merged.main.pets as Record<string, unknown>[])[0];
+    assert.equal(pet?.id, 'main');
+    assert.equal('presentation' in (pet ?? {}), false);
+    assert.equal('model3d' in (pet ?? {}), false);
+  });
+
+  test('保存请求体里的三维字段会落盘', () => {
+    const out = saveOnce({ pets: [demo] });
+    const pet = (out?.pets as Record<string, unknown>[])[0];
+    assert.equal(pet?.presentation, 'model3d');
+    assert.deepEqual(pet?.model3d, demo.model3d);
+  });
+
+  test('设置页保存没带这两个字段时，沿用磁盘上同一只宠物的旧值', () => {
+    const bare = { ...demo };
+    delete (bare as { presentation?: unknown }).presentation;
+    delete (bare as { model3d?: unknown }).model3d;
+    const out = saveOnce({ pets: [bare] }, { pets: [demo] });
+    const pet = (out?.pets as Record<string, unknown>[])[0];
+    assert.equal(pet?.presentation, 'model3d');
+    assert.deepEqual(pet?.model3d, demo.model3d);
+  });
+
+  test('显式非法 presentation 整包拒绝', () => {
+    assert.equal(saveOnce({ pets: [{ ...demo, presentation: 'hologram' }] }), null);
+  });
+});
+
 describe('syncUserConfigFromDefault —— 同步（内置默认原文写入用户层）', () => {
   /** 默认文件写入给定原文；用户文件故意放在尚不存在的子目录里（验证父目录自建） */
   function fixture(raw: string): { paths: ConfigPaths; dir: string } {

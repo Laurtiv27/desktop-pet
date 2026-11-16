@@ -113,6 +113,8 @@ class PetSprite {
       this.chatMount = null;
     }
     this.closeMenu();
+    if (typeof this.stopRoam === 'function') this.stopRoam();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('dispose');
     this.stopThrow();
     this.stopDragFollow();
     this.stopSquash();

@@ -23,6 +23,9 @@ Object.assign(PetSprite.prototype, {
     e.preventDefault();
     this.stopThrow(); // 菜单弹出前停住飞行中的宠物
     this.stopMove(); // 菜单悬停期间宠物不漫游
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('menu');
+    // 三维计划被拆掉后走路片段还会循环；回到 idle。视频随机链不在这里重开。
+    if (this.playbackKind === 'model3d') this.playIdle();
     // 桌面专属工具根项 + 共享菜单树（动作 → 分类 → 具体动画）。碎碎念/对话无条件显示：手动触发
     // 不受 whisperEnabled 限制（该字段只影响自动轮询）。首项文案与去向随宿主形态变，见 OPEN_LABEL。
     // 顺序：打开软件 / 余额 / 待办 / 碎碎念 / 对话 / 配图 / 睡觉 → 动作树 → 显示位置 / 重载配置 / 回到初始位置。
@@ -374,8 +377,10 @@ Object.assign(PetSprite.prototype, {
   goHome() {
     this.stopThrow();
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     this.customPos = null;
     this.position();
+    if (this.playbackKind === 'model3d') this.playIdle();
   },
 
   /**

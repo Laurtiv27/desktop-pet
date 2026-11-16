@@ -13,6 +13,50 @@ import { isValidSizePercent } from '../../shared/pet-size.ts';
 import type { ConfigPaths } from './constants.ts';
 import { fontValid, modelSelectionValid, physicsValid, topFieldValid } from './validate.ts';
 
+const PRESENTATION_KINDS = new Set(['video', 'spine', 'model3d']);
+
+/** 按 trim 后的 id 找磁盘上那一只，供设置页保存时把未提交的三维字段带回去。 */
+function existingPetRecord(
+  existing: Record<string, unknown> | undefined,
+  id: string,
+): Record<string, unknown> | undefined {
+  const pets = existing && Array.isArray(existing.pets) ? existing.pets : [];
+  for (const item of pets) {
+    if (!item || typeof item !== 'object') continue;
+    const pid =
+      typeof (item as Record<string, unknown>).id === 'string' ? (item as Record<string, unknown>).id.trim() : '';
+    if (pid === id) return item as Record<string, unknown>;
+  }
+  return undefined;
+}
+
+/**
+ * presentation / model3d：请求体写了就校验后落盘；没写就沿用磁盘上同一只宠物的旧值。
+ * 设置页不认识这两个字段，保存时不能把用户手写的演示配置抹掉。显式非法值整包拒绝。
+ * 返回 null 表示拒绝。
+ */
+function petPresentationForSave(
+  pp: Record<string, unknown>,
+  prev: Record<string, unknown> | undefined,
+): { presentation?: string; model3d?: Record<string, unknown> } | null {
+  const out: { presentation?: string; model3d?: Record<string, unknown> } = {};
+  const hasPresentation = Object.prototype.hasOwnProperty.call(pp, 'presentation') && pp.presentation != null;
+  if (hasPresentation) {
+    if (typeof pp.presentation !== 'string' || !PRESENTATION_KINDS.has(pp.presentation)) return null;
+    out.presentation = pp.presentation;
+  } else if (prev && typeof prev.presentation === 'string' && PRESENTATION_KINDS.has(prev.presentation)) {
+    out.presentation = prev.presentation;
+  }
+  const hasModel = Object.prototype.hasOwnProperty.call(pp, 'model3d') && pp.model3d != null;
+  if (hasModel) {
+    if (typeof pp.model3d !== 'object' || Array.isArray(pp.model3d)) return null;
+    out.model3d = pp.model3d as Record<string, unknown>;
+  } else if (prev && prev.model3d && typeof prev.model3d === 'object' && !Array.isArray(prev.model3d)) {
+    out.model3d = prev.model3d as Record<string, unknown>;
+  }
+  return out;
+}
+
 /**
  * 保存用户层（PUT /config）：接受 pets + 全局开关 + physics / font / 两个模型 / 对话参数。
  * 非白名单顶层字段（whisperPrompt、eventsRefreshSec、memes 等）从 existing 原样透传保留——
@@ -73,6 +117,8 @@ export function saveUserConfig(
     const rawPersona = pp.whisperPrompt;
     if (rawPersona !== undefined && rawPersona !== null && typeof rawPersona !== 'string') return null;
     const persona = typeof rawPersona === 'string' ? rawPersona.trim() : '';
+    const presentationExtra = petPresentationForSave(pp, existingPetRecord(existing, id));
+    if (!presentationExtra) return null;
     const pet: Record<string, unknown> = {
       id,
       name,
@@ -86,6 +132,7 @@ export function saveUserConfig(
     };
     if (persona) pet.whisperPrompt = persona;
     if (sizePercent !== undefined && sizePercent !== null) pet.sizePercent = sizePercent;
+    Object.assign(pet, presentationExtra);
     out.push(pet);
   }
   const ne = o.notificationsEnabled;

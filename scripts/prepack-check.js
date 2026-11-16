@@ -86,6 +86,7 @@ const required = [
   'runtime/electron-helper/sprite/presentation.js', // 表现层工厂（须在 presentation-model3d.js 之后加载）
   'runtime/electron-helper/vendor/three-gltf.iife.js', // Three.js + GLTFLoader（window.THREE / window.GLTFLoader）
   'runtime/electron-helper/sprite/motion.js', // 桌面模式运动驱动（同上）
+  'runtime/electron-helper/sprite/behavior-runner.js', // 三维 Intent 执行（须在 motion 之后；video 宠物调用为空操作）
   'runtime/electron-helper/sprite/input.js', // 桌面模式指针与命中（同上）
   'runtime/electron-helper/sprite/init.js', // 桌面模式构建期初始化（同上）
   'runtime/electron-helper/sprite/window-fit.js', // 桌面模式窗口落位与钳制补偿（sprite.js 的原型扩展，须在其后加载）

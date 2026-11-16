@@ -1,0 +1,28 @@
+// 追加到用户层 ~/.dsh/dsh-pet/main-config.jsonc 的 pets 数组，不要替换默认女仆。
+// autoBehavior: false = 只循环 idle；改为 true 后约每 5–9 秒走到随机点。
+// 说明见 docs/model3d-presentation.md。
+{
+  "name": "小狐狸",
+  "id": "model3d-demo",
+  "size": 320,
+  "balanceEnabled": false,
+  "whisperEnabled": false,
+  "workStatusEnabled": false,
+  "fixedEnabled": true,
+  "display": "desktop",
+  "position": { "corner": "bottom-right", "marginX": 24, "marginY": 80 },
+  "presentation": "model3d",
+  "model3d": {
+    "assetId": "model3d-demo",
+    "meta": {
+      "glb": "Fox.glb",
+      "clips": { "idle": "Survey", "walk": "Walk" },
+      "walkSpeedPx": 100,
+      "scale": 0.02,
+      "pivot": { "x": 0, "y": 0, "z": 0 },
+      "camera": { "kind": "perspective", "fov": 35, "distance": 5 },
+      "facingMode": "mirror",
+      "autoBehavior": false
+    }
+  }
+}

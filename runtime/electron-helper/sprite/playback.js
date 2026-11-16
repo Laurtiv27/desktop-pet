@@ -132,12 +132,6 @@ Object.assign(PetSprite.prototype, {
     return name === 'idle';
   },
 
-  /** autoBehavior 显式关闭时不抽漫游，只留循环待机。 */
-  model3dAutoBehaviorOff() {
-    const meta = this.model3dMeta || (this.pet && this.pet.model3d && this.pet.model3d.meta);
-    return !!(meta && meta.autoBehavior === false);
-  },
-
   /**
    * 三维换 clip：不走 videoA/B。idle 槽强制 loop。
    * 非待机且只播一次时，片段结束经 onEnded 进 handleEnded，与视频 ended 同一条链。
@@ -189,6 +183,8 @@ Object.assign(PetSprite.prototype, {
       // 停住正在播的那一段：宿主停不掉一段视频，完全静止只能由渲染端执行；只堵随机链入口不够，
       // 那个入口要等动画播完才被调用。
       this.stopMove();
+      if (typeof this.stopRoam === 'function') this.stopRoam();
+      if (typeof this.cancelPlan === 'function') this.cancelPlan('frozen');
       if (el) el.pause();
       if (this.presentation && typeof this.presentation.setPaused === 'function') {
         this.presentation.setPaused(true);
@@ -272,6 +268,8 @@ Object.assign(PetSprite.prototype, {
       }
       this.sleepPhase = 'end';
       this.stopMove();
+      if (typeof this.cancelPlan === 'function') this.cancelPlan('sleep');
+      if (typeof this.stopRoam === 'function') this.stopRoam();
       this.playOnce(this.sleepSet.end);
       console.log(stamp + ' 醒来：播 ' + this.sleepSet.end + ' 一遍');
       return;
@@ -282,6 +280,8 @@ Object.assign(PetSprite.prototype, {
     this.sleepSet = { start: state.start, loop: state.loop, end: state.end };
     this.sleepPhase = 'start';
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('sleep');
+    if (typeof this.stopRoam === 'function') this.stopRoam();
     // 与占用锁同一口径：进睡就把任务状态气泡收掉（醒来不补亮，等下一次状态变化再对齐）
     if (this.workTimer !== null) window.clearTimeout(this.workTimer);
     this.workTimer = null;
@@ -314,13 +314,14 @@ Object.assign(PetSprite.prototype, {
     if (this.sleeping) return;
     this.stopMove();
     if (this.playbackKind === 'model3d') {
+      // 先拆掉未完成的速度计划，否则 stopMove 把 onArrive 掐掉后 runner 会一直占着当前计划。
+      if (typeof this.cancelPlan === 'function') this.cancelPlan('idle');
       const idlePool = this.animations && this.animations.idle;
       const idleName = (idlePool && idlePool.length && S.pick(idlePool, this.anim)) || 'idle';
       // 第二参 false = 循环。idle 在 playModel3dPresentation 里再强制 loop:true。
       this.switchTo(idleName, false);
-      // autoBehavior === false：跳过漫游抽卡，只保循环待机（与 fixed 一样不再自己走）。
-      if (this.model3dAutoBehaviorOff()) return;
-      // 允许自动行为时也不走 webm tryMove（它跟 video.currentTime）。速度漫游由 startSpeedMoveDrive 承担。
+      // autoBehavior === false 时 startRoam 直接返回，只保循环待机。开着则定时走随机目标。
+      if (typeof this.startRoam === 'function') this.startRoam();
       return;
     }
     const { animations, animationWeights } = { animations: this.animations, animationWeights: this.weights };

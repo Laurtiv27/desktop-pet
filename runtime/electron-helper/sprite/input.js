@@ -71,6 +71,7 @@ Object.assign(PetSprite.prototype, {
     this.stopThrow(); // 空中抓取：从当前落点开始新拖拽（this.pos 实时）
     this.stopDragFollow();
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     this.dragTrail = [];
     // 弹弓：按下时记时刻、按下时比对——间隔 = 两次按下之间的距离，与这次拖了多久无关，
     // 也没有「待拉」状态或超时清理。
@@ -115,8 +116,12 @@ Object.assign(PetSprite.prototype, {
     if (!d.dragging) {
       if (Math.hypot(dx, dy) < S.DRAG_THRESHOLD) return;
       d.dragging = true;
+      if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
       // 睡觉：位置照常跟手，但不换拖拽动画——睡姿循环整段归睡觉状态机，顶掉就回不来了。
-      if (this.animations.drag.length && !this.sleeping) {
+      // 三维不播 webm 拖拽名：有 drag 槽才换片段，没有就保持当前画面（松手仍回 idle）。
+      if (this.playbackKind === 'model3d') {
+        if (typeof this.playModel3dDrag === 'function') this.playModel3dDrag();
+      } else if (this.animations.drag.length && !this.sleeping) {
         this.playOnce(S.pick(this.animations.drag));
       }
       this.syncInputBusy(); // 拖拽成立：主进程兜底通道闭嘴（见 inputBusy）
@@ -366,6 +371,7 @@ Object.assign(PetSprite.prototype, {
   onClick(e) {
     const d = this.dragState;
     if (d.active || d.dragging || this.justDragged) return;
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     // Ctrl（macOS 为 Cmd）+ 左键 = 呼出 DSH：与菜单首项同一动作，只是快捷键——
     // 不播点击动画、也不参与积分，避免「摸一下宠物」变成「开窗口」。
     if (isOpenShortcut(e)) {

@@ -117,6 +117,35 @@ function petBool(own: unknown, def: unknown, label: string, field: string, id: s
   return Boolean(def);
 }
 
+const PRESENTATION_KINDS = new Set(['video', 'spine', 'model3d']);
+
+/**
+ * 三维演示写在用户层宠物上：presentation / model3d 不是内置默认字段，只在覆盖层显式给出时保留。
+ * 非法值告警后丢掉，不把脏对象放进渲染层。缺省不补 video，避免每只旧宠物凭空多一个键。
+ */
+function petPresentationFields(
+  raw: Record<string, unknown>,
+  label: string,
+  id: string,
+): { presentation?: string; model3d?: Record<string, unknown> } {
+  const out: { presentation?: string; model3d?: Record<string, unknown> } = {};
+  if (raw.presentation !== undefined && raw.presentation !== null) {
+    if (typeof raw.presentation === 'string' && PRESENTATION_KINDS.has(raw.presentation)) {
+      out.presentation = raw.presentation;
+    } else {
+      warnOnce(`${label}:presentation:${id}`, `宠物「${id}」的 presentation 非法，已忽略（按 video 处理）`);
+    }
+  }
+  if (raw.model3d !== undefined && raw.model3d !== null) {
+    if (typeof raw.model3d === 'object' && !Array.isArray(raw.model3d)) {
+      out.model3d = raw.model3d as Record<string, unknown>;
+    } else {
+      warnOnce(`${label}:model3d:${id}`, `宠物「${id}」的 model3d 非法，已忽略`);
+    }
+  }
+  return out;
+}
+
 /** 宠物实例字段取白名单枚举；缺失 → 静默取默认；显式写但非法 → 告警 + 默认 */
 function petEnum(
   own: unknown,
@@ -176,6 +205,7 @@ function mergePet(
     // 这里刻意不填生效值：人设的默认值是所属条目那一份，一旦填进每只实例，/pet-display 写回就会把
     // 「跟随条目」固化成显式覆盖——之后用户改条目人设，这些实例不再跟着变。
     ...petPersonaField(p.whisperPrompt, label, id),
+    ...petPresentationFields(p, label, id),
   };
 }
 
