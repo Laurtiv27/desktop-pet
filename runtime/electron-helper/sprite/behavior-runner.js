@@ -247,14 +247,14 @@ function createBehaviorRunner(sprite, opts) {
       };
       playClip(step.clip, false, advance);
       const fallback =
-        Number.isFinite(step.durationMs) && step.durationMs > 0 ? step.durationMs : CLIP_END_FALLBACK_MS;
+        Number.isFinite(step.durationMs) && step.durationMs > 0 ? step.durationMs : clipEndMs;
       waitThen(fallback, myToken, advance);
       return;
     }
 
     playClip(step.clip, step.loop);
     const timed =
-      Number.isFinite(step.durationMs) && step.durationMs > 0 ? step.durationMs : CLIP_END_FALLBACK_MS;
+      Number.isFinite(step.durationMs) && step.durationMs > 0 ? step.durationMs : clipEndMs;
     waitThen(timed, myToken, next);
   }
 
