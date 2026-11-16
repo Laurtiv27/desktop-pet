@@ -32,10 +32,17 @@ PetSprite.prototype.onWorkTick = function onWorkTick(snapshot, tick) {
     // 宠物会卡在那段工作动画上。只改当前段：它结束后走 handleEnded → playIdle。
     // 睡觉时前台那段是睡姿循环：改掉它的 loop/onended 会既打断睡姿又把随机链拽回来，跳过。
     if (!this.sleeping && S.poolIncludes(this.animations.events?.workStatus ?? [], this.anim)) {
-      const frontEl = this.front === 0 ? this.videoA : this.videoB;
-      if (frontEl) {
-        frontEl.loop = false;
-        frontEl.onended = () => this.handleEnded();
+      // 骨骼循环段走 switchTo(name, false)，不排 handleEnded；videoA/B 为 null，
+      // 不清 _spineExternalClip 的话 submitRoam 会一直 no-op。
+      if (this.presentationKind === 'spine') {
+        this._spineExternalClip = false;
+        this.playIdle();
+      } else {
+        const frontEl = this.front === 0 ? this.videoA : this.videoB;
+        if (frontEl) {
+          frontEl.loop = false;
+          frontEl.onended = () => this.handleEnded();
+        }
       }
     }
     // 空闲：收起常驻气泡

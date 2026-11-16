@@ -16,6 +16,7 @@ const sharedPath = join(root, 'runtime/electron-helper/shared-core.js');
 const motionPath = join(root, 'runtime/electron-helper/sprite/motion.js');
 const runnerPath = join(root, 'runtime/electron-helper/sprite/behavior-runner.js');
 const playbackPath = join(root, 'runtime/electron-helper/sprite/playback.js');
+const eventsPath = join(root, 'runtime/electron-helper/events.js');
 const inputPath = join(root, 'runtime/electron-helper/sprite/input.js');
 const menuPath = join(root, 'runtime/electron-helper/sprite/menu.js');
 const indexHtmlPath = join(root, 'runtime/electron-helper/index.html');
@@ -151,6 +152,42 @@ function loadHarness(opts = {}) {
       return raf;
     },
   };
+}
+
+function loadWorkStatusHarness(opts = {}) {
+  const h = loadHarness(opts);
+  h.sandbox.BUBBLE_DURATION_MS = 10000;
+  h.sandbox.FOCUS_SESSION_URL = '/focus-session';
+  vm.runInContext(readFileSync(playbackPath, 'utf8'), h.sandbox, { filename: playbackPath });
+  vm.runInContext(readFileSync(eventsPath, 'utf8'), h.sandbox, { filename: eventsPath });
+  Object.assign(h.sprite, {
+    pet: { ...h.sprite.pet, workStatusEnabled: true },
+    animations: {
+      ...h.sprite.animations,
+      events: { workStatus: ['Think', 'WorkLoop', 'Result', 'Wait', 'Ok', 'Err'] },
+    },
+    prevWorkTick: 0,
+    prevWorkState: null,
+    workState: null,
+    workTimer: null,
+    workOn: false,
+    workText: null,
+    workSessionId: null,
+    anim: 'Idle',
+    front: 0,
+    videoA: null,
+    videoB: null,
+    once: false,
+    pending: null,
+    playback: null,
+    pendingSquash: false,
+    pendingMove: null,
+    _spineClipTimer: null,
+    _spineExternalClip: false,
+    renderBubble() {},
+    reportPlayback() {},
+  });
+  return h;
 }
 
 describe('createBehaviorRunner.submitIntent', () => {
@@ -353,6 +390,19 @@ describe('菜单与外部片段不抢漫游', () => {
     sprite._spineExternalClip = false;
     flushTimers(25);
     assert.equal(runner.currentPlan && runner.currentPlan.source, 'roam');
+  });
+
+  test('循环工作状态回 idle 后下一次 roam 可提交', () => {
+    const { sprite, runner } = loadWorkStatusHarness({ roamMinMs: 25, roamMaxMs: 25 });
+    runner.startRoam();
+    assert.equal(runner.currentPlan && runner.currentPlan.source, 'roam');
+    sprite.onWorkTick({ state: 'working' }, 1);
+    assert.equal(sprite.anim, 'WorkLoop');
+    assert.equal(sprite._spineExternalClip, true, '循环工作片段应占用外部标志');
+    assert.equal(runner.currentPlan, null, '工作状态应取消当前 roam');
+    sprite.onWorkTick({ state: null }, 2);
+    assert.equal(sprite._spineExternalClip, false, '回 idle 必须清掉外部片段标志');
+    assert.equal(runner.currentPlan && runner.currentPlan.source, 'roam', '回 idle 后 roam 应能提交');
   });
 });
 
