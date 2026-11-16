@@ -18,6 +18,8 @@ assets/spine/<pet-id>/
 
 播放端用配置里的 `pets[].spine.meta`（`parseSpineMeta`）驱动槽位与步行速度。磁盘上的 `meta.json` 暂不加载。
 
+本地可见验证：`runtime/electron-helper/spine-demo/` 放了官方示例角色 spineboy（真骨骼渲染，不是色块）。`assets/config.jsonc` 里 `main` 已默认 `presentation: "spine"` 并映射 idle/walk 等 clip。
+
 设置页只露出「表现：视频 / 骨骼」。骨骼工程、运行时与图集请放到上述路径，由播放端解析。保存展示项时若请求体没带 `spine`，会按宠物 id 保留磁盘上已有的 `spine`。
 
 ## 分发边界
