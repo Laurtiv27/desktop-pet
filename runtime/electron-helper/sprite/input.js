@@ -71,6 +71,7 @@ Object.assign(PetSprite.prototype, {
     this.stopThrow(); // 空中抓取：从当前落点开始新拖拽（this.pos 实时）
     this.stopDragFollow();
     this.stopMove();
+    this.cancelPlan('user');
     this.dragTrail = [];
     // 弹弓：按下时记时刻、按下时比对——间隔 = 两次按下之间的距离，与这次拖了多久无关，
     // 也没有「待拉」状态或超时清理。
@@ -115,6 +116,7 @@ Object.assign(PetSprite.prototype, {
     if (!d.dragging) {
       if (Math.hypot(dx, dy) < S.DRAG_THRESHOLD) return;
       d.dragging = true;
+      this.cancelPlan('user');
       // 睡觉：位置照常跟手，但不换拖拽动画——睡姿循环整段归睡觉状态机，顶掉就回不来了。
       if (this.animations.drag.length && !this.sleeping) {
         this.playOnce(S.pick(this.animations.drag));

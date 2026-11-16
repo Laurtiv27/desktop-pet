@@ -106,6 +106,8 @@ const scriptGlobals = {
   // sprite/presentation-spine-stub.js、sprite/presentation.js
   createSpineStubPresentation: 'readonly',
   createPresentation: 'readonly',
+  // sprite/behavior-runner.js
+  createBehaviorRunner: 'readonly',
   // events.js
   startLoops: 'readonly',
 };

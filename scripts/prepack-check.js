@@ -85,6 +85,7 @@ const required = [
   'runtime/electron-helper/sprite/presentation-spine-stub.js', // 骨骼表现层 Canvas 占位（须在 presentation.js 前加载）
   'runtime/electron-helper/sprite/presentation.js', // 桌面模式表现层工厂（playback 之后、video 仍走现有路径）
   'runtime/electron-helper/sprite/motion.js', // 桌面模式运动驱动（同上）
+  'runtime/electron-helper/sprite/behavior-runner.js', // 桌面模式行为执行器与规则漫游（presentation / motion 之后）
   'runtime/electron-helper/sprite/input.js', // 桌面模式指针与命中（同上）
   'runtime/electron-helper/sprite/init.js', // 桌面模式构建期初始化（同上）
   'runtime/electron-helper/sprite/window-fit.js', // 桌面模式窗口落位与钳制补偿（sprite.js 的原型扩展，须在其后加载）

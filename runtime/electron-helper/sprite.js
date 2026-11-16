@@ -117,6 +117,11 @@ class PetSprite {
       this.presentation.dispose();
       this.presentation = null;
     }
+    if (this.behaviorRunner) {
+      this.behaviorRunner.stopRoam();
+      this.behaviorRunner.cancelPlan('dispose');
+      this.behaviorRunner = null;
+    }
     this.stopThrow();
     this.stopDragFollow();
     this.stopSquash();

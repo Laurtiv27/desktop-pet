@@ -286,6 +286,10 @@ Object.assign(PetSprite.prototype, {
     // 播完由 handleEnded 清掉睡觉态再回到这里（那时 sleeping 已经为 false）。
     if (this.sleeping) return;
     this.stopMove();
+    if (this.presentationKind === 'spine') {
+      this.startRoam();
+      return;
+    }
     const { animations, animationWeights } = { animations: this.animations, animationWeights: this.weights };
     const roll = Math.random();
     // 宠物固定：掷骰时把「转向 / 移动」两档权重按 0 算，随机链不再让宠物自己翻朝向或走开；
