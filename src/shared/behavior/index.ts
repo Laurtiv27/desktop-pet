@@ -5,3 +5,4 @@ export * from './validate-intent.ts';
 export * from './planner.ts';
 export * from './priority.ts';
 export * from './arrive.ts';
+export * from './parse-intent-json.ts';

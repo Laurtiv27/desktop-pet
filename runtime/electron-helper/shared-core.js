@@ -4998,6 +4998,96 @@ function hasArrived(current, goal, threshold = DEFAULT_ARRIVE_THRESHOLD) {
 }
 
 //#endregion
+//#region src/shared/behavior/parse-intent-json.ts
+function extractFirstJsonObject(text) {
+	const start = text.indexOf("{");
+	if (start < 0) return null;
+	let depth = 0;
+	for (let i = start; i < text.length; i++) {
+		const ch = text.charAt(i);
+		if (ch === "{") depth += 1;
+		else if (ch === "}") {
+			depth -= 1;
+			if (depth === 0) return text.slice(start, i + 1);
+		}
+	}
+	return null;
+}
+function isRecord(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function parseSequence(raw) {
+	if (!Array.isArray(raw) || raw.length === 0) return null;
+	const out = [];
+	for (const item of raw) {
+		if (!isRecord(item)) return null;
+		const clip = item.clip;
+		if (typeof clip !== "string" || !clip.trim()) return null;
+		const step = { clip: clip.trim() };
+		if (item.loop !== void 0) {
+			if (typeof item.loop !== "boolean") return null;
+			step.loop = item.loop;
+		}
+		if (item.until !== void 0) {
+			const until = item.until;
+			if (until !== "arrive" && until !== "clip-end" && until !== "duration") return null;
+			step.until = until;
+		}
+		if (item.durationMs !== void 0) {
+			if (typeof item.durationMs !== "number" || !Number.isFinite(item.durationMs)) return null;
+			step.durationMs = item.durationMs;
+		}
+		out.push(step);
+	}
+	return out;
+}
+function parseGoal(raw) {
+	if (raw === void 0) return void 0;
+	if (!isRecord(raw)) return null;
+	const { xRatio, yRatio } = raw;
+	if (typeof xRatio !== "number" || typeof yRatio !== "number") return null;
+	if (!Number.isFinite(xRatio) || !Number.isFinite(yRatio)) return null;
+	return {
+		xRatio,
+		yRatio
+	};
+}
+function parseIntentJson(text) {
+	if (typeof text !== "string" || !text.trim()) return null;
+	const trimmed = text.trim();
+	const candidate = trimmed.startsWith("{") && trimmed.endsWith("}") ? trimmed : extractFirstJsonObject(text);
+	if (!candidate) return null;
+	let parsed;
+	try {
+		parsed = JSON.parse(candidate);
+	} catch {
+		return null;
+	}
+	if (!isRecord(parsed)) return null;
+	const sequence = parseSequence(parsed.sequence);
+	if (!sequence) return null;
+	const intent = {
+		sequence,
+		source: "ai"
+	};
+	if (parsed.goal !== void 0) {
+		const goal = parseGoal(parsed.goal);
+		if (goal === null) return null;
+		intent.goal = goal;
+	}
+	if (parsed.facing !== void 0) {
+		const facing = parsed.facing;
+		if (facing !== "left" && facing !== "right" && facing !== "keep") return null;
+		intent.facing = facing;
+	}
+	if (parsed.priority !== void 0) {
+		if (typeof parsed.priority !== "number" || !Number.isFinite(parsed.priority)) return null;
+		intent.priority = parsed.priority;
+	}
+	return intent;
+}
+
+//#endregion
 exports.ACCEL_GAIN_MAX = ACCEL_GAIN_MAX
 exports.ACCEL_REF = ACCEL_REF
 exports.ANIMATION_EXT = ANIMATION_EXT
@@ -5164,6 +5254,7 @@ exports.nextWorkStatusAnim = nextWorkStatusAnim
 exports.normalizePresentation = normalizePresentation
 exports.overlapPush = overlapPush
 exports.parseDateTimeLocal = parseDateTimeLocal
+exports.parseIntentJson = parseIntentJson
 exports.parseSpineMeta = parseSpineMeta
 exports.parseTodoItem = parseTodoItem
 exports.parseTodoList = parseTodoList
