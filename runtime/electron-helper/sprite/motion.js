@@ -81,7 +81,12 @@ Object.assign(PetSprite.prototype, {
       if (Math.abs(dx) > 1) this.facing = dx > 0 ? 'right' : 'left';
       if (!playedWalk && this.playbackKind === 'model3d') {
         playedWalk = true;
-        this.switchTo('walk', false);
+        // runner 可能已 play walk；仅当当前不是 walk 槽/映射名时再切，避免动画重起。
+        const walkMapped =
+          (this.model3dMeta && this.model3dMeta.clips && this.model3dMeta.clips.walk) || 'walk';
+        if (this.anim !== 'walk' && this.anim !== walkMapped) {
+          this.switchTo('walk', false);
+        }
       }
       const stepPx = Math.min(dist, speed * dt);
       const nx = cx + (dx / dist) * stepPx;
