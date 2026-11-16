@@ -16,4 +16,16 @@
 
 ## 素材
 
-首版使用可演示授权的免费 glTF（来源与署名在接入具体 GLB 时写入本节）。
+首版演示模型是 Khronos glTF Sample Models 的 Fox（glTF-Binary）。
+
+- 文件：`assets/model3d/model3d-demo/Fox.glb`（同目录 `meta.json`：`idle` → `Survey`，`walk` → `Walk`，`autoBehavior: false`）
+- 来源：https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Fox
+- 许可副本：`assets/model3d/model3d-demo/NOTICE.txt`
+
+| 部分       | 作者                                                                        | 许可                                                                                           |
+| ---------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 低模网格   | [PixelMannen](https://opengameart.org/content/fox-and-shiba)                | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)                                  |
+| 绑定与动画 | [@tomkranis](https://sketchfab.com/models/371dea88d7e04a76af5763f2a36866bc) | [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)                                      |
+| glTF 转换  | @AsoboStudio、@scurest                                                      | [转换说明](https://github.com/KhronosGroup/glTF-Sample-Models/pull/150#issuecomment-406300118) |
+
+公开展示或再分发动画时，按 CC-BY 4.0 保留 tomkranis 的署名，并保留 PixelMannen 的来源说明。

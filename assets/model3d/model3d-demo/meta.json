@@ -1,0 +1,10 @@
+{
+  "glb": "Fox.glb",
+  "clips": { "idle": "Survey", "walk": "Walk" },
+  "walkSpeedPx": 100,
+  "scale": 0.02,
+  "pivot": { "x": 0, "y": 0, "z": 0 },
+  "camera": { "kind": "perspective", "fov": 35, "distance": 5 },
+  "facingMode": "mirror",
+  "autoBehavior": false
+}
