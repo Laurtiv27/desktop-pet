@@ -82,6 +82,9 @@ const required = [
   'runtime/electron-helper/sprite/bubble.js', // 桌面模式气泡与提示渲染（sprite.js 的原型扩展，须在其后加载）
   'runtime/electron-helper/sprite/menu.js', // 桌面模式右键菜单（sprite.js 的原型扩展，须在其后加载）
   'runtime/electron-helper/sprite/playback.js', // 桌面模式播放状态机（同上）
+  'runtime/electron-helper/sprite/presentation-model3d.js', // 三维透明舞台（须在 three vendor 之后加载）
+  'runtime/electron-helper/sprite/presentation.js', // 表现层工厂（须在 presentation-model3d.js 之后加载）
+  'runtime/electron-helper/vendor/three-gltf.iife.js', // Three.js + GLTFLoader（window.THREE / window.GLTFLoader）
   'runtime/electron-helper/sprite/motion.js', // 桌面模式运动驱动（同上）
   'runtime/electron-helper/sprite/input.js', // 桌面模式指针与命中（同上）
   'runtime/electron-helper/sprite/init.js', // 桌面模式构建期初始化（同上）
@@ -92,6 +95,9 @@ const required = [
 for (const f of required) {
   existsSync(join(ROOT, f)) ? ok(`exists ${f}`) : fail(`missing ${f}`);
 }
+const threeVendor = join(ROOT, 'runtime/electron-helper/vendor/three-gltf.iife.js');
+if (existsSync(threeVendor) && statSync(threeVendor).size > 0) ok('three vendor non-empty');
+else if (existsSync(threeVendor)) fail('three vendor is empty');
 
 // 待机动画是播放链的起点，缺了宠物立不起来；浏览器与桌面 Helper 共用这一份 webm。
 const idleWebm = join(ROOT, 'assets', 'webm', '待机呼吸休闲.webm');

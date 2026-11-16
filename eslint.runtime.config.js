@@ -100,6 +100,9 @@ const scriptGlobals = {
   loopsStarted: 'writable',
   // sprite.js
   PetSprite: 'readonly',
+  // sprite/presentation-model3d.js、sprite/presentation.js
+  createModel3dPresentation: 'readonly',
+  createPresentation: 'readonly',
   OPEN_SHORTCUT_HINT: 'readonly',
   isOpenShortcut: 'readonly',
   playClickSound: 'readonly',
@@ -109,8 +112,8 @@ const scriptGlobals = {
 
 export default defineConfig([
   {
-    // MediaPipe 官方包原样拷入，不是本仓库脚本。
-    ignores: ['runtime/electron-helper/posture/vendor/**'],
+    // 第三方原样或打包产物，不是本仓库手写脚本。
+    ignores: ['runtime/electron-helper/posture/vendor/**', 'runtime/electron-helper/vendor/**'],
   },
   {
     files: ['runtime/electron-helper/**/*.js'],

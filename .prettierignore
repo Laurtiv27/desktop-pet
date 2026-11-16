@@ -4,6 +4,7 @@ assets
 runtime/electron-helper/shared-core.js
 runtime/electron-helper/posture/core.js
 runtime/electron-helper/posture/vendor
+runtime/electron-helper/vendor
 cordis.patch.yml
 package-lock.json
 pnpm-lock.yaml

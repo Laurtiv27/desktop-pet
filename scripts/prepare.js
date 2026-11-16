@@ -44,6 +44,16 @@ if (buildCore.status !== 0) {
   process.exit(1);
 }
 
+// 桌面页从 file:// 载入，不能直接 import three；发布物必须带上打好的 IIFE。
+console.log('[prepare] vendoring three + GLTFLoader...');
+const vendorThreeRun =
+  process.platform === 'win32' ? 'cmd /c npm run vendor:three-model3d' : 'npm run vendor:three-model3d';
+const vendorThree = spawnSync(vendorThreeRun, { cwd: ROOT, stdio: 'inherit', shell: true });
+if (vendorThree.status !== 0) {
+  console.error(`[prepare] three vendor 构建失败 (exit ${vendorThree.status})`);
+  process.exit(1);
+}
+
 // 类型声明是构建产物、不入 git，克隆后靠这一步补齐；漏跑则 exports 声明的 types 路径全空。
 console.log('[prepare] generating types (npm run types)...');
 const typesRun = process.platform === 'win32' ? 'cmd /c npm run types' : 'npm run types';
