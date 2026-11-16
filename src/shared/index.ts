@@ -8,6 +8,7 @@
  * @module dsh-pet/src/shared/index
  */
 export * from './types.ts';
+export * from './behavior/index.ts';
 export * from './constants.ts';
 export * from './pickers.ts';
 export * from './displays.ts';

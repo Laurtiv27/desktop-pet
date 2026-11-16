@@ -149,6 +149,14 @@ export interface Pet {
   chatAnimationEnabled?: boolean;
   /** 条目级：对话配图张数上限（非负整数，0 = 不限制）。只截「交给模型的清单」，不截碎碎念抽图。 */
   chatImageLimit?: number;
+  /** 表现后端：缺省 video；spine 类型预留本分支不实现；model3d = Three.js glTF */
+  presentation?: 'video' | 'spine' | 'model3d';
+  /** 仅 presentation === 'model3d' 时有效 */
+  model3d?: {
+    /** 相对 /model3d/<assetRoot>/ 的目录名；缺省用 pet.id */
+    assetId?: string;
+    meta?: import('./behavior/model3d-meta.ts').Model3dMeta;
+  };
 }
 
 /** 一处「服务商 + 模型」选择（config.jsonc 的 whisperModel / chatModel 段）。
