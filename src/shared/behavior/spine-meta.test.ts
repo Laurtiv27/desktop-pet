@@ -23,4 +23,14 @@ describe('parseSpineMeta', () => {
     const m = parseSpineMeta({ clips: { idle: 'a' }, walkSpeedPx: -1, defaultSkin: 's' });
     assert.equal(m!.walkSpeedPx, DEFAULT_WALK_SPEED_PX);
   });
+
+  test('保留自定义 clip 键与 autoBehavior:false', () => {
+    const m = parseSpineMeta({
+      clips: { idle: 'idle', portal: 'portal' },
+      autoBehavior: false,
+    });
+    assert.ok(m);
+    assert.equal(m!.clips.portal, 'portal');
+    assert.equal(m!.autoBehavior, false);
+  });
 });

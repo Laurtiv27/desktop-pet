@@ -26,6 +26,7 @@
 
 - **透明桌宠** — 上百个 VP9-alpha 动画，拖拽、物理、气泡与托盘常驻
 - **多开与设置** — 多只宠物同屏；设置页调大小、位置、人设与开关
+- **骨骼双轨（开发中）** — `presentation: "spine"` 与视频宠共存；分支 `feat/spine-free-motion`（详见下方）
 - **坐姿守护** — 摄像头 + MediaPipe；趴桌 / 低头 / 疲劳等提醒，可演出或系统通知
 - **屏幕感知** — 碎碎念时可带一帧桌面截图（默认关闭；不落盘；可黑名单）
 - **独立 AI** — 自备 API Key，支持碎碎念与对话（可选）
@@ -98,10 +99,24 @@ runtime/            # Electron helper（透明窗、托盘、检测窗）
 assets/             # 动画、音效、坐姿模型
 ```
 
+## Spine 骨骼双轨（`feat/spine-free-motion`）
+
+> 尚未合并 `main`。检出该分支后 `npm run build && npm run standalone` 可试用。
+
+<p align="center">
+  <img src="assets/preview/spine-yanling-desktop.png" alt="Spine 焰灵夜叉王演示" width="320" />
+</p>
+
+- 视频宠与骨骼宠可同时配置；骨骼侧支持 Spine 3.8 / 4.x 运行时分流
+- 演示立绘来自 [金猪资产库 · Spine](https://www.357p.com/spines/)，**仅本地演示，请遵守原站授权**
+- 说明文档：[docs/spine-free-motion.md](docs/spine-free-motion.md)
+- 素材约定：`assets/spine/README.md`、`runtime/electron-helper/spine-demo/README.md`
+
 ## Acknowledgments
 
 - 上游项目：[dsh-pet](https://github.com/PC2005-cloud/dsh-pet)
 - 宠物动作素材：[AI 跟图 · 宠物动画](https://aigengtu.com/pet-anims)
+- Spine 演示素材来源：[金猪资产库 · Spine](https://www.357p.com/spines/)（第三方站点；授权以原站为准）
 
 ## License
 

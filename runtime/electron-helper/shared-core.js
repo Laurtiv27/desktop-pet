@@ -4780,18 +4780,6 @@ const INTENT_PRIORITY = {
 //#endregion
 //#region src/shared/behavior/spine-meta.ts
 const DEFAULT_WALK_SPEED_PX = 120;
-const CLIP_SLOTS$1 = [
-	"idle",
-	"walk",
-	"turn",
-	"sit",
-	"wave",
-	"happy",
-	"drag"
-];
-function isClipSlot(key) {
-	return CLIP_SLOTS$1.includes(key);
-}
 function parseSpineMeta(raw) {
 	if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
 	const record = raw;
@@ -4800,20 +4788,26 @@ function parseSpineMeta(raw) {
 	const clips = {};
 	let hasStringClip = false;
 	for (const [key, value] of Object.entries(clipsIn)) {
-		if (typeof value !== "string") continue;
+		if (typeof value !== "string" || !value) continue;
 		hasStringClip = true;
-		if (isClipSlot(key)) clips[key] = value;
+		clips[key] = value;
 	}
 	if (!hasStringClip) return null;
 	let defaultSkin = "default";
 	if (typeof record.defaultSkin === "string" && record.defaultSkin.length > 0) defaultSkin = record.defaultSkin;
 	let walkSpeedPx = DEFAULT_WALK_SPEED_PX;
 	if (typeof record.walkSpeedPx === "number" && Number.isFinite(record.walkSpeedPx) && record.walkSpeedPx > 0) walkSpeedPx = record.walkSpeedPx;
-	return {
+	const out = {
 		clips,
 		walkSpeedPx,
 		defaultSkin
 	};
+	if (record.autoBehavior === false) out.autoBehavior = false;
+	else if (record.autoBehavior === true) out.autoBehavior = true;
+	if (typeof record.skeleton === "string" && record.skeleton.trim()) out.skeleton = record.skeleton.trim();
+	if (typeof record.atlas === "string" && record.atlas.trim()) out.atlas = record.atlas.trim();
+	if (typeof record.runtime === "string" && record.runtime.trim()) out.runtime = record.runtime.trim();
+	return out;
 }
 
 //#endregion

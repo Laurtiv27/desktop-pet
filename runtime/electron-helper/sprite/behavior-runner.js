@@ -243,7 +243,17 @@ function createBehaviorRunner(sprite, opts) {
     return Math.max(clipEndMs, ROAM_IDLE_MS);
   }
 
+  function roamEnabled() {
+    // 缺省开启；显式 false 时不自动表演/乱走（留给后续「按窗口内容互动」）
+    const pet = sprite.pet;
+    if (!pet) return true;
+    if (pet.roamEnabled === false) return false;
+    if (pet.spine && pet.spine.meta && pet.spine.meta.autoBehavior === false) return false;
+    return true;
+  }
+
   function submitRoam() {
+    if (!roamEnabled()) return;
     if (sprite.frozen || sprite.sleeping) return;
     if (sprite.dragState && sprite.dragState.active) return;
     // 菜单开着、或骨骼一次性/外部片段还在播：这次不抢画面。定时器照常排下一次。
@@ -284,6 +294,10 @@ function createBehaviorRunner(sprite, opts) {
   }
 
   function startRoam() {
+    if (!roamEnabled()) {
+      stopRoam();
+      return;
+    }
     if (runner._roamStarted) {
       // playIdle 在打断之后会再进来：计划已空就立刻补一次，不必干等下一次定时器。
       if (!runner.currentPlan) submitRoam();

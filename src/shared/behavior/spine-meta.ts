@@ -1,26 +1,19 @@
-import type { ClipSlot } from './types.ts';
-
 export type SpineMeta = {
-  clips: Partial<Record<ClipSlot, string>>;
+  /** 槽位或任意动画别名 → 骨架内真实动画名 */
+  clips: Record<string, string>;
   walkSpeedPx: number;
   defaultSkin: string;
+  /** 缺省 true；false = 不自动漫游/乱表演（仅待机，待接窗口互动） */
+  autoBehavior?: boolean;
+  /** 骨架文件名（相对资源目录），默认 spineboy-pro.skel */
+  skeleton?: string;
+  /** 图集文件名（相对资源目录），默认 spineboy-pma.atlas */
+  atlas?: string;
+  /** 运行时主版本：`3.8` 或省略（按 4.x） */
+  runtime?: string;
 };
 
 export const DEFAULT_WALK_SPEED_PX = 120;
-
-const CLIP_SLOTS: readonly ClipSlot[] = [
-  'idle',
-  'walk',
-  'turn',
-  'sit',
-  'wave',
-  'happy',
-  'drag',
-];
-
-function isClipSlot(key: string): key is ClipSlot {
-  return (CLIP_SLOTS as readonly string[]).includes(key);
-}
 
 export function parseSpineMeta(raw: unknown): SpineMeta | null {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -38,17 +31,15 @@ export function parseSpineMeta(raw: unknown): SpineMeta | null {
   }
 
   const clipsIn = record.clips as Record<string, unknown>;
-  const clips: Partial<Record<ClipSlot, string>> = {};
+  const clips: Record<string, string> = {};
   let hasStringClip = false;
 
   for (const [key, value] of Object.entries(clipsIn)) {
-    if (typeof value !== 'string') {
+    if (typeof value !== 'string' || !value) {
       continue;
     }
     hasStringClip = true;
-    if (isClipSlot(key)) {
-      clips[key] = value;
-    }
+    clips[key] = value;
   }
 
   if (!hasStringClip) {
@@ -69,5 +60,17 @@ export function parseSpineMeta(raw: unknown): SpineMeta | null {
     walkSpeedPx = record.walkSpeedPx;
   }
 
-  return { clips, walkSpeedPx, defaultSkin };
+  const out: SpineMeta = { clips, walkSpeedPx, defaultSkin };
+  if (record.autoBehavior === false) out.autoBehavior = false;
+  else if (record.autoBehavior === true) out.autoBehavior = true;
+  if (typeof record.skeleton === 'string' && record.skeleton.trim()) {
+    out.skeleton = record.skeleton.trim();
+  }
+  if (typeof record.atlas === 'string' && record.atlas.trim()) {
+    out.atlas = record.atlas.trim();
+  }
+  if (typeof record.runtime === 'string' && record.runtime.trim()) {
+    out.runtime = record.runtime.trim();
+  }
+  return out;
 }

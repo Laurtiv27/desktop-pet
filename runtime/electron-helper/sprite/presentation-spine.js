@@ -15,7 +15,13 @@ function createSpineWebglPresentation(opts) {
   const api = typeof spine !== 'undefined' ? spine : null;
   if (!api || typeof api.AssetManager !== 'function') return null;
 
+  const meta = opts && opts.pet && opts.pet.spine && opts.pet.spine.meta;
   const assetBase = (opts && opts.assetBase) || './spine-demo/';
+  const skeletonFile =
+    (meta && typeof meta.skeleton === 'string' && meta.skeleton.trim()) || 'spineboy-pro.skel';
+  const atlasFile =
+    (meta && typeof meta.atlas === 'string' && meta.atlas.trim()) || 'spineboy-pma.atlas';
+  const useJson = /\.json$/i.test(skeletonFile);
 
   let canvas = null;
   let gl = null;
@@ -55,8 +61,9 @@ function createSpineWebglPresentation(opts) {
       }
       renderer = new api.SceneRenderer(canvas, gl);
       assetManager = new api.AssetManager(gl, assetBase);
-      assetManager.loadBinary('spineboy-pro.skel');
-      assetManager.loadTextureAtlas('spineboy-pma.atlas');
+      if (useJson) assetManager.loadText(skeletonFile);
+      else assetManager.loadBinary(skeletonFile);
+      assetManager.loadTextureAtlas(atlasFile);
       lastMs = performance.now();
       raf = requestAnimationFrame(tick);
     },
@@ -103,18 +110,28 @@ function createSpineWebglPresentation(opts) {
     }
   }
 
+  let loadFailed = false;
   function tryFinishLoad() {
+    if (loadFailed || ready) return false;
     if (!assetManager || !assetManager.isLoadingComplete()) return false;
     if (assetManager.hasErrors()) {
+      loadFailed = true;
       console.warn('[dsh-pet] Spine 资源加载失败', assetManager.getErrors());
       return false;
     }
     try {
-      const atlas = assetManager.require('spineboy-pma.atlas');
+      const atlas = assetManager.require(atlasFile);
       const atlasLoader = new api.AtlasAttachmentLoader(atlas);
-      const binary = new api.SkeletonBinary(atlasLoader);
-      binary.scale = 1;
-      const data = binary.readSkeletonData(assetManager.require('spineboy-pro.skel'));
+      let data;
+      if (useJson) {
+        const json = new api.SkeletonJson(atlasLoader);
+        json.scale = 1;
+        data = json.readSkeletonData(assetManager.require(skeletonFile));
+      } else {
+        const binary = new api.SkeletonBinary(atlasLoader);
+        binary.scale = 1;
+        data = binary.readSkeletonData(assetManager.require(skeletonFile));
+      }
       skeleton = new api.Skeleton(data);
       boundsOffset = new api.Vector2();
       boundsSize = new api.Vector2();
@@ -130,6 +147,7 @@ function createSpineWebglPresentation(opts) {
       applyFacingAndFit();
       return true;
     } catch (err) {
+      loadFailed = true;
       console.warn('[dsh-pet] Spine 骨架初始化失败', err);
       return false;
     }

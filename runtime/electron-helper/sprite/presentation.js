@@ -20,7 +20,27 @@
  */
 function createPresentation(kind, opts) {
   if (kind !== 'spine') return null; // video 仍走现有 videoA/B
-  // 优先真 Spine；运行时或 WebGL 不可用时回落色块 stub（仅兜底）
+  const meta = opts && opts.pet && opts.pet.spine && opts.pet.spine.meta;
+  const runtime = meta && typeof meta.runtime === 'string' ? meta.runtime.trim() : '';
+  const want38 = runtime === '3.8';
+  console.info(
+    '[dsh-pet] createPresentation spine runtime=' +
+      (runtime || '(缺省4.x)') +
+      ' spine38=' +
+      !!(typeof window !== 'undefined' && window.spine38 && window.spine38.webgl) +
+      ' fn38=' +
+      (typeof createSpine38Presentation),
+  );
+  // 3.8 导出（立绘包等）走独立运行时；缺省 / 4.x 走现有 WebGL
+  if (want38) {
+    if (typeof createSpine38Presentation === 'function') {
+      const v38 = createSpine38Presentation(opts);
+      if (v38) return v38;
+      console.warn('[dsh-pet] Spine 3.8 表现层创建失败（spine38 未就绪？）');
+    } else {
+      console.warn('[dsh-pet] 配置 runtime=3.8 但 createSpine38Presentation 未加载');
+    }
+  }
   if (typeof createSpineWebglPresentation === 'function') {
     const real = createSpineWebglPresentation(opts);
     if (real) return real;

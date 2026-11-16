@@ -365,9 +365,18 @@
     <script src="./sprite/window-fit.js"></script>
     <script src="./sprite/init.js"></script>
     <script src="./sprite/playback.js"></script>
-    <script src="./vendor/spine-webgl.iife.js"></script>
+    <!-- 焰灵等 3.8 立绘：先只挂 3.8。4.x IIFE 与 3.8 抢全局 spine，另存易丢；双运行时以后再隔离。 -->
+    <script src="./vendor/spine-webgl-3.8.js"></script>
+    <script>
+      window.spine38 = typeof spine !== 'undefined' ? spine : null;
+      console.info(
+        '[dsh-pet] spine38 已保存',
+        !!(window.spine38 && window.spine38.webgl && window.spine38.webgl.AssetManager),
+        typeof spine,
+      );
+    </script>
     <script src="./sprite/presentation-spine-stub.js"></script>
-    <script src="./sprite/presentation-spine.js"></script>
+    <script src="./sprite/presentation-spine-38.js"></script>
     <script src="./sprite/presentation.js"></script>
     <script src="./sprite/motion.js"></script>
     <script src="./sprite/behavior-runner.js"></script>

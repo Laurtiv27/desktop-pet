@@ -129,9 +129,20 @@ Object.assign(PetSprite.prototype, {
    * 骨骼表现层换 clip：不走 videoA/B 双缓冲。mappedClip 经 meta.clips 槽位映射。
    * 加载是同步的（stub 立刻出画），所以直接维护 this.anim / this.playback，不经 pending/gen。
    */
+  /** 当前名字是否属于待机池（骨骼待机必须循环，不能 playOnce 播完冻末帧）。 */
+  isSpineIdleClip(name) {
+    const idle = this.animations && this.animations.idle;
+    if (!Array.isArray(idle) || !name) return false;
+    if (idle.includes(name)) return true;
+    const clips = this.pet.spine && this.pet.spine.meta && this.pet.spine.meta.clips;
+    if (clips && typeof clips.idle === 'string' && clips.idle === name) return true;
+    return name === 'idle';
+  },
+
   playSpinePresentation(next, nextOnce, playbackId) {
-    // 外部片段（点击/菜单/睡觉/事件）占用画面期间，漫游定时器不得把 clip 顶掉。
-    this._spineExternalClip = true;
+    // 外部非待机片段占用期间，漫游定时器不得把 clip 顶掉。
+    const idleClip = this.isSpineIdleClip(next);
+    this._spineExternalClip = !idleClip;
     if (this._spineClipTimer != null) {
       window.clearTimeout(this._spineClipTimer);
       this._spineClipTimer = null;
@@ -139,8 +150,10 @@ Object.assign(PetSprite.prototype, {
     const token = (this._spineClipToken = (this._spineClipToken || 0) + 1);
     const clips = this.pet.spine && this.pet.spine.meta && this.pet.spine.meta.clips;
     const mapped = S.mapPresentationClip(next, clips);
+    // 待机永远 loop；其它仍按 nextOnce（true=播一次）。
+    const loop = idleClip ? true : !nextOnce;
     if (this.presentation) {
-      this.presentation.play(mapped, { loop: !nextOnce });
+      this.presentation.play(mapped, { loop });
       this.presentation.setFacing(this.facing === 'right' ? 'right' : 'left');
     }
     if (this.playback && this.playback !== playbackId) {
@@ -154,15 +167,19 @@ Object.assign(PetSprite.prototype, {
       const el = this.front === 0 ? this.videoA : this.videoB;
       if (el) this.startSquash(el);
     }
-    // 骨骼位移由后续速度驱动接管；此处不拿 video.duration 开 startMoveDrive。
     this.pendingMove = null;
-    if (!nextOnce) return;
+    if (loop) return;
+    const durSec =
+      this.presentation && Number.isFinite(this.presentation.clipDurationSec)
+        ? this.presentation.clipDurationSec
+        : 0;
+    const waitMs = Math.max(SPINE_CLIP_END_MS, Math.round((durSec || 1.5) * 1000));
     this._spineClipTimer = window.setTimeout(() => {
       this._spineClipTimer = null;
       if (token !== this._spineClipToken) return;
       if (this.anim !== next) return;
       this.handleEnded();
-    }, SPINE_CLIP_END_MS);
+    }, waitMs);
   },
 
   // 直接播一个外部地址。单独一个方法、不复用 onMenuAction：那套是菜单语义（文字类强制朝左的镜像
@@ -308,9 +325,13 @@ Object.assign(PetSprite.prototype, {
     if (this.sleeping) return;
     this.stopMove();
     if (this.presentationKind === 'spine') {
-      // 外部片段结束才回到漫游。cancelPlan 放在 stopMove 外面：塞进 stopMove 会和 startRoam 递归。
+      // 骨骼：先原地循环待机呼吸；漫游另开（autoBehavior=false 时 startRoam 直接返回）。
       this._spineExternalClip = false;
       this.cancelPlan('user');
+      const idleName =
+        (this.animations.idle && this.animations.idle.length && S.pick(this.animations.idle, this.anim)) ||
+        'idle';
+      this.switchTo(idleName, false);
       this.startRoam();
       return;
     }

@@ -84,9 +84,14 @@ const required = [
   'runtime/electron-helper/sprite/playback.js', // 桌面模式播放状态机（同上）
   'runtime/electron-helper/sprite/presentation-spine-stub.js', // 骨骼表现层 Canvas 占位（须在 presentation.js 前加载）
   'runtime/electron-helper/sprite/presentation-spine.js', // 真·Spine WebGL 表现层（依赖 vendor/spine-webgl.iife.js）
+  'runtime/electron-helper/sprite/presentation-spine-38.js', // Spine 3.8 表现层（依赖 vendor/spine-webgl-3.8.js）
   'runtime/electron-helper/vendor/spine-webgl.iife.js', // Spine runtime IIFE（本地验证；发行授权另议）
+  'runtime/electron-helper/vendor/spine-webgl-3.8.js', // Spine 3.8 runtime（旧版导出立绘等）
   'runtime/electron-helper/sprite/presentation.js', // 桌面模式表现层工厂（playback 之后、video 仍走现有路径）
-  'runtime/electron-helper/spine-demo/spineboy-pro.skel', // 本地可见验证用示例角色（勿当正式发行素材）
+  'runtime/electron-helper/spine-demo/skeleton.skel', // 焰灵夜叉王立绘（3.8；本地验证）
+  'runtime/electron-helper/spine-demo/skeleton.atlas',
+  'runtime/electron-helper/spine-demo/skeleton.png',
+  'runtime/electron-helper/spine-demo/spineboy-pro.skel', // 备用 4.2 示例角色（勿当正式发行素材）
   'runtime/electron-helper/spine-demo/spineboy-pma.atlas',
   'runtime/electron-helper/spine-demo/spineboy-pma.png',
   'runtime/electron-helper/sprite/motion.js', // 桌面模式运动驱动（同上）
