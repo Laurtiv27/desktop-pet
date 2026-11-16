@@ -20,7 +20,7 @@ test('model3d 缺 animations 用 stub，idle 来自 meta clips', () => {
   const setup = resolvePetPlaybackSetup({
     id: 'fox',
     presentation: 'model3d',
-    model3d: { meta: { clips: { idle: 'Survey' } } } as import('./types.ts').Pet['model3d'],
+    model3d: { meta: { clips: { idle: 'Survey' } } } as import('../types.ts').Pet['model3d'],
   });
   assert.equal(setup.kind, 'model3d');
   assert.equal(setup.usedStub, true);
