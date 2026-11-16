@@ -14,8 +14,8 @@ const ROAM_MAX_MS = 9000;
 const ROAM_IDLE_MS = 1600;
 const CLIP_END_FALLBACK_MS = 1500;
 const ROAM_MARGIN = 0.12;
-/** 原地表演优先：用户要的是动作效果，不是只会挪窗口 */
-const EXPRESSIVE_CLIPS = ['happy', 'wave', 'turn'];
+/** 原地表演优先（槽位名；会映射到 spine.meta.clips） */
+const EXPRESSIVE_CLIPS = ['happy', 'wave', 'turn', 'portal', 'aim', 'run'];
 
 /**
  * 漫游只读配置里的 `pet.spine.meta`（经 parseSpineMeta）。

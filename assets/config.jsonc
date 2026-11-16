@@ -268,8 +268,26 @@
         "corner": "top-right",
         "marginX": 24,
         "marginY": 100
+      }
+      // 默认 video：蓝毛小女仆走 webm，与骨骼宠双轨共存。
+      // 想让这只宠物有自己的性格，就取消下面这行的注释（留空/不写 = 跟随文件顶层的 whisperPrompt）
+      // "whisperPrompt": "你是主人桌面上的猫娘，说话简短、爱吐槽，20 字以内。"
+    },
+    {
+      // 另开一只骨骼演示宠：不覆盖女仆。示例角色 spineboy，仅用于验证自由动作。
+      "name": "Spine演示",
+      "id": "spine-demo",
+      "size": 420,
+      "balanceEnabled": false,
+      "whisperEnabled": false,
+      "workStatusEnabled": false,
+      "fixedEnabled": false,
+      "display": "desktop",
+      "position": {
+        "corner": "bottom-left",
+        "marginX": 40,
+        "marginY": 80
       },
-      // 骨骼表现（本地验证）：真·Spine WebGL + spineboy 示例角色。clip 名必须与 skel 内动画名一致。
       "presentation": "spine",
       "spine": {
         "root": "demo",
@@ -281,14 +299,16 @@
             "sit": "idle",
             "wave": "shoot",
             "happy": "jump",
-            "drag": "hoverboard"
+            "drag": "hoverboard",
+            "run": "run",
+            "portal": "portal",
+            "aim": "aim",
+            "death": "death"
           },
           "walkSpeedPx": 140,
           "defaultSkin": "default"
         }
       }
-      // 想让这只宠物有自己的性格，就取消下面这行的注释（留空/不写 = 跟随文件顶层的 whisperPrompt）
-      // "whisperPrompt": "你是主人桌面上的猫娘，说话简短、爱吐槽，20 字以内。"
     }
   ],
 
