@@ -48,6 +48,22 @@ describe('validateIntent', () => {
     }
   });
 
+  test('goal 非有限数拒绝', () => {
+    const cases: Array<{ xRatio: number; yRatio: number }> = [
+      { xRatio: Number.NaN, yRatio: 0.5 },
+      { xRatio: 0.5, yRatio: Number.NaN },
+      { xRatio: Number.POSITIVE_INFINITY, yRatio: 0.5 },
+      { xRatio: 0.5, yRatio: Number.NEGATIVE_INFINITY },
+    ];
+    for (const goal of cases) {
+      const r = validateIntent(baseIntent({ goal }), allowed);
+      assert.equal(r.ok, false);
+      if (!r.ok) {
+        assert.equal(r.reason, '目标坐标越界');
+      }
+    }
+  });
+
   test('空 sequence 拒绝', () => {
     const r = validateIntent(baseIntent({ sequence: [] }), allowed);
     assert.equal(r.ok, false);
