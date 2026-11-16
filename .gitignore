@@ -8,6 +8,7 @@ lib/
 !.env.example
 .superpowers/
 docs/superpowers/
+.worktrees/
 *.local
 .idea/
 .vscode/
