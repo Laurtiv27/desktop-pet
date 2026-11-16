@@ -4913,7 +4913,7 @@ const CLIP_SLOTS = [
 	"happy",
 	"drag"
 ];
-const DEFAULT_ARRIVE_THRESHOLD = .01;
+const DEFAULT_ARRIVE_THRESHOLD$1 = .01;
 function isClipSlotKey(clip) {
 	return CLIP_SLOTS.includes(clip);
 }
@@ -4947,7 +4947,7 @@ function planBehavior(input) {
 	const validated = validateIntent(input.intent, input.allowedClips);
 	if (!validated.ok) return validated;
 	const intent = validated.intent;
-	const threshold = input.arriveThreshold ?? DEFAULT_ARRIVE_THRESHOLD;
+	const threshold = input.arriveThreshold ?? DEFAULT_ARRIVE_THRESHOLD$1;
 	const steps = [];
 	const goal = intent.goal;
 	if (goal !== void 0) {
@@ -4988,6 +4988,16 @@ function canInterrupt(currentPriority, next) {
 }
 
 //#endregion
+//#region src/shared/behavior/arrive.ts
+const DEFAULT_ARRIVE_THRESHOLD = .01;
+function ratioDistance(a, b) {
+	return Math.hypot(a.xRatio - b.xRatio, a.yRatio - b.yRatio);
+}
+function hasArrived(current, goal, threshold = DEFAULT_ARRIVE_THRESHOLD) {
+	return ratioDistance(current, goal) <= threshold;
+}
+
+//#endregion
 exports.ACCEL_GAIN_MAX = ACCEL_GAIN_MAX
 exports.ACCEL_REF = ACCEL_REF
 exports.ANIMATION_EXT = ANIMATION_EXT
@@ -5005,6 +5015,7 @@ exports.CUSTOM_LIMITS = CUSTOM_LIMITS
 exports.CUSTOM_STYLE_KEYS = CUSTOM_STYLE_KEYS
 exports.CUSTOM_TAGS = CUSTOM_TAGS
 exports.DEAD_ZONE_SPEED = DEAD_ZONE_SPEED
+exports.DEFAULT_ARRIVE_THRESHOLD = DEFAULT_ARRIVE_THRESHOLD
 exports.DEFAULT_FONT = DEFAULT_FONT
 exports.DEFAULT_PHYSICS = DEFAULT_PHYSICS
 exports.DEFAULT_ROLLING_LABEL = DEFAULT_ROLLING_LABEL
@@ -5122,6 +5133,7 @@ exports.formatDateTimeLocal = formatDateTimeLocal
 exports.frameToToast = frameToToast
 exports.getVoiceState = getVoiceState
 exports.groupMemes = groupMemes
+exports.hasArrived = hasArrived
 exports.indexAtPoint = indexAtPoint
 exports.injectMemeBubbleCss = injectMemeBubbleCss
 exports.isCaptureHotkey = isCaptureHotkey
@@ -5170,6 +5182,7 @@ exports.postAction = postAction
 exports.pullAngle = pullAngle
 exports.quotaTone = quotaTone
 exports.randomBetween = randomBetween
+exports.ratioDistance = ratioDistance
 exports.readAnim = readAnim
 exports.readBalance = readBalance
 exports.readLock = readLock

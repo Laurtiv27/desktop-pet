@@ -39,6 +39,46 @@ Object.assign(PetSprite.prototype, {
     this.moveRef = requestAnimationFrame(step);
   },
 
+  /**
+   * 骨骼走路：按恒定像素速度朝 goal 挪窗口。goal 与 sendBounds 同口径（窗口左上角屏幕像素）。
+   * webm 仍走 startMoveDrive（跟 video.currentTime）；本方法不读 duration。
+   */
+  startSpeedMoveDrive({ goal, speedPx, onArrive }) {
+    if (!goal || !Number.isFinite(goal.x) || !Number.isFinite(goal.y)) return;
+    if (!Number.isFinite(speedPx) || speedPx <= 0) return;
+    const token = ++this.moveToken;
+    if (this.moveRef !== null) {
+      cancelAnimationFrame(this.moveRef);
+      this.moveRef = null;
+    }
+    let last = performance.now();
+    const step = () => {
+      if (this.moveToken !== token) return;
+      const now = performance.now();
+      const dt = Math.min((now - last) / 1000, 1 / 30);
+      last = now;
+      const x = this.pos.x;
+      const y = this.pos.y;
+      const dx = goal.x - x;
+      const dy = goal.y - y;
+      const dist = Math.hypot(dx, dy);
+      const stepLen = speedPx * dt;
+      if (dist <= stepLen) {
+        this.sendBounds(goal.x, goal.y);
+        this.moveRef = null;
+        this.customPos = {
+          rx: (this.pos.x + this.halfW) / VIEW.w,
+          ry: (this.pos.y + this.halfH) / VIEW.h,
+        };
+        if (typeof onArrive === 'function') onArrive();
+        return;
+      }
+      this.sendBounds(x + (dx / dist) * stepLen, y + (dy / dist) * stepLen);
+      this.moveRef = requestAnimationFrame(step);
+    };
+    this.moveRef = requestAnimationFrame(step);
+  },
+
   stopMove() {
     this.pendingMove = null;
     this.moveToken++;
