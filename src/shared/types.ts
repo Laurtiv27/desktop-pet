@@ -4,6 +4,8 @@
  * 纯类型与常量，无 React / DOM 依赖。
  * @module dsh-pet/src/shared/types
  */
+import type { PresentationKind } from './behavior/types.ts';
+import type { SpineMeta } from './behavior/spine-meta.ts';
 
 /** 支持的角落。 */
 export type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -113,6 +115,10 @@ export interface Pet {
    *  写了就取代所属条目顶层那一份（替换而非拼接），没写或空串则回落条目——回落发生在宿主半侧，不是错误。
    *  只写正文：名字与时间背景由宿主无条件追加，不要在这里重复写。 */
   whisperPrompt?: string;
+  /** 呈现方式：骨骼或视频序列；缺省按 video（见 {@link normalizePresentation}）。 */
+  presentation?: PresentationKind;
+  /** 骨骼素材：`root` 为相对 `assets/spine/<id>` 或条目素材根下的子路径；`meta` 为槽位与皮肤元数据。 */
+  spine?: { root: string; meta?: SpineMeta };
   animations?: Animations;
   animationWeights?: Weights;
   extra?: boolean;
