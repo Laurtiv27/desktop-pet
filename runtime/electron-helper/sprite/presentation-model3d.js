@@ -94,6 +94,8 @@ function createModel3dPresentation(opts) {
         pendingPlay = null;
         if (queued) play(queued.slot, queued.playOpts);
         else play('idle', { loop: true });
+        // 模型到达前 setFacing 只记下方向；根节点出现后补一次，避免起步朝向丢在加载窗口里。
+        setFacing(state.facing);
       },
       undefined,
       (err) => console.warn('[dsh-pet] model3d 加载失败', assetId, err),

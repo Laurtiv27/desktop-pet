@@ -117,6 +117,10 @@ class PetSprite {
     this.stopDragFollow();
     this.stopSquash();
     this.stopMove();
+    if (this.presentation && typeof this.presentation.dispose === 'function') {
+      this.presentation.dispose();
+      this.presentation = null;
+    }
     this.el.remove();
   }
 
@@ -128,6 +132,10 @@ class PetSprite {
     const value = next === 'right' ? 'right' : 'left';
     if (this._facing === value) return;
     this._facing = value;
+    // 三维朝向不靠 video 的 scaleX：表现层在的话立刻翻模型。初始化写的是 _facing，不会走到这里。
+    if (this.presentation && typeof this.presentation.setFacing === 'function') {
+      this.presentation.setFacing(value);
+    }
     this.markPoseDirty();
   }
 

@@ -2,7 +2,7 @@
  * 播放状态机：换源、前后台交替、收尾、冻结与占用锁、空闲随机链。
  *
  * PetSprite 由 sprite.js 定义，本文件只往原型上挂方法，必须在其后加载。
- * 只读实例状态与 shared-core 的选池函数，副作用是 DOM 视频源与 this.* 字段。
+ * 只读实例状态与 shared-core 的选池函数，副作用是 DOM 视频源、三维表现层与 this.* 字段。
  * @module dsh-pet/runtime/electron-helper/sprite-playback
  */
 'use strict';
@@ -14,6 +14,10 @@ Object.assign(PetSprite.prototype, {
     // 交给调用方维护时 switchTo(x, false) 会留下过期值，events.js 判「是不是工作动画」就永远不成立。
     this.anim = next;
     this.once = !nextOnce;
+    if (this.playbackKind === 'model3d') {
+      this.playModel3dPresentation(next, nextOnce, playbackId);
+      return;
+    }
     const pending = this.pending;
     if (pending && pending.anim === next && pending.once === nextOnce) {
       // 防重命中（单动画点击时目标=当前动画，不重播）：仍消费 Q 弹标记，压当前前台视频，
@@ -118,6 +122,46 @@ Object.assign(PetSprite.prototype, {
     this.switchTo(name, true, playbackId, url);
   },
 
+  /** 当前名字是否属于待机池（三维待机必须循环，不能 playOnce 播完冻在末帧）。 */
+  isModel3dIdleClip(name) {
+    const idle = this.animations && this.animations.idle;
+    if (!name) return false;
+    if (Array.isArray(idle) && idle.includes(name)) return true;
+    const clips = this.model3dMeta && this.model3dMeta.clips;
+    if (clips && typeof clips.idle === 'string' && clips.idle === name) return true;
+    return name === 'idle';
+  },
+
+  /** autoBehavior 显式关闭时不抽漫游，只留循环待机。 */
+  model3dAutoBehaviorOff() {
+    const meta = this.model3dMeta || (this.pet && this.pet.model3d && this.pet.model3d.meta);
+    return !!(meta && meta.autoBehavior === false);
+  },
+
+  /**
+   * 三维换 clip：不走 videoA/B。idle 槽强制 loop。
+   * 没有 video.ended，非循环片段不会自己回到随机链（BehaviorRunner 再用定时器接）。
+   */
+  playModel3dPresentation(next, nextOnce, playbackId) {
+    const isIdle = this.isModel3dIdleClip(next);
+    const loop = isIdle ? true : !nextOnce;
+    if (this.presentation) {
+      this.presentation.play(next, { loop });
+      this.presentation.setFacing(this.facing === 'right' ? 'right' : 'left');
+    }
+    if (this.playback && this.playback !== playbackId) {
+      this.reportPlayback(this.playback, 'cancelled', 'superseded');
+    }
+    this.pending = null;
+    this.playback = playbackId || null;
+    if (playbackId) this.reportPlayback(playbackId, 'playing');
+    if (this.pendingSquash) {
+      this.pendingSquash = false;
+      const el = this.front === 0 ? this.videoA : this.videoB;
+      if (el) this.startSquash(el);
+    }
+  },
+
   // 直接播一个外部地址。单独一个方法、不复用 onMenuAction：那套是菜单语义（文字类强制朝左的镜像
   // 修正、移动类走真实位移），裸地址没有这些属性。这里只停掉漫游并换源播一次，播完回到正常动画链；
   // 地址本身同时是 pending 的防重键与日志标识。
@@ -165,6 +209,11 @@ Object.assign(PetSprite.prototype, {
     // 否则回 idle 一次，播完由 handleEnded 接回随机链。
     if (this.resumeSleepAnim()) return;
     if (this.resumeWorkStatusAnim()) return;
+    // 三维没有视频续播：解冻直接回循环待机，不 playOnce 干等 ended。
+    if (this.playbackKind === 'model3d') {
+      this.playIdle();
+      return;
+    }
     if (this.animations.idle.length) this.playOnce(S.pick(this.animations.idle, this.anim));
   },
 
@@ -256,6 +305,16 @@ Object.assign(PetSprite.prototype, {
     // 播完由 handleEnded 清掉睡觉态再回到这里（那时 sleeping 已经为 false）。
     if (this.sleeping) return;
     this.stopMove();
+    if (this.playbackKind === 'model3d') {
+      const idlePool = this.animations && this.animations.idle;
+      const idleName = (idlePool && idlePool.length && S.pick(idlePool, this.anim)) || 'idle';
+      // 第二参 false = 循环。idle 在 playModel3dPresentation 里再强制 loop:true。
+      this.switchTo(idleName, false);
+      // autoBehavior === false：跳过漫游抽卡，只保循环待机（与 fixed 一样不再自己走）。
+      if (this.model3dAutoBehaviorOff()) return;
+      // 允许自动行为时也不走 webm tryMove（它跟 video.currentTime）。速度漫游由 startSpeedMoveDrive 承担。
+      return;
+    }
     const { animations, animationWeights } = { animations: this.animations, animationWeights: this.weights };
     const roll = Math.random();
     // 宠物固定：掷骰时把「转向 / 移动」两档权重按 0 算，随机链不再让宠物自己翻朝向或走开；
@@ -403,6 +462,8 @@ Object.assign(PetSprite.prototype, {
   // 漫游（rAF 驱动，动画首尾各 leadSec/tailSec 秒原地不动；几何在 shared/planMove）。
   // preferredName 传入时固定用该动画（菜单点播移动动画），否则与随机链一致随机选。
   tryMove(preferredName, playbackId) {
+    // 三维位移不跟视频时长。返回 false 让菜单点播退化成纯播放，避免 pendingMove 挂死。
+    if (this.playbackKind === 'model3d') return false;
     if (this.moveRef !== null || this.pendingMove || this.throwRef !== null) return true;
     const moves = this.animations.moves;
     const actions = moves.actions;

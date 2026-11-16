@@ -39,6 +39,58 @@ Object.assign(PetSprite.prototype, {
     this.moveRef = requestAnimationFrame(step);
   },
 
+  /**
+   * 三维走路：按恒定像素速度把宠物中心挪到 goal 的归一化坐标。
+   * goal 与 customPos 同口径（xRatio/yRatio，相对 VIEW）。webm 仍走 startMoveDrive。
+   * 模型在动的时候循环 walk；没有 onArrive 时到达后回 idle。
+   */
+  startSpeedMoveDrive({ goal, speedPx, onArrive } = {}) {
+    if (!goal || !Number.isFinite(goal.xRatio) || !Number.isFinite(goal.yRatio)) return;
+    this.stopMove();
+    const token = ++this.moveToken;
+    const W = VIEW.w;
+    const H = VIEW.h;
+    const speed = speedPx > 0 ? speedPx : 120;
+    let last = performance.now();
+    let playedWalk = false;
+    const finish = () => {
+      this.moveRef = null;
+      this.customPos = { rx: goal.xRatio, ry: goal.yRatio };
+      if (typeof onArrive === 'function') onArrive();
+      else if (this.playbackKind === 'model3d') this.playIdle();
+    };
+    const step = () => {
+      if (this.moveToken !== token) return;
+      const now = performance.now();
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      const cx = this.pos.x + this.halfW;
+      const cy = this.pos.y + this.halfH;
+      const tx = goal.xRatio * W;
+      const ty = goal.yRatio * H;
+      const dx = tx - cx;
+      const dy = ty - cy;
+      const dist = Math.hypot(dx, dy);
+      if (dist <= 2) {
+        this.sendBounds(tx - this.halfW, ty - this.halfH);
+        finish();
+        return;
+      }
+      // 先翻朝向再开 walk，避免走路第一下还朝着反方向。
+      if (Math.abs(dx) > 1) this.facing = dx > 0 ? 'right' : 'left';
+      if (!playedWalk && this.playbackKind === 'model3d') {
+        playedWalk = true;
+        this.switchTo('walk', false);
+      }
+      const stepPx = Math.min(dist, speed * dt);
+      const nx = cx + (dx / dist) * stepPx;
+      const ny = cy + (dy / dist) * stepPx;
+      this.sendBounds(nx - this.halfW, ny - this.halfH);
+      this.moveRef = requestAnimationFrame(step);
+    };
+    this.moveRef = requestAnimationFrame(step);
+  },
+
   stopMove() {
     this.pendingMove = null;
     this.moveToken++;
@@ -277,6 +329,7 @@ Object.assign(PetSprite.prototype, {
   /** Q 弹挤压：前台视频垂直压扁（贴地锚定再回弹），曲线在 shared。depth = 下压幅度
    *  （点击固定 0.55，落地按冲击速度动态取）；reduce-motion 时跳过。 */
   startSquash(el, depth = S.SQ_SQUASH) {
+    if (!el) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const token = ++this.squashToken;
     if (this.squashRef !== null) cancelAnimationFrame(this.squashRef);

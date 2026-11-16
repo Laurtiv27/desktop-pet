@@ -90,6 +90,11 @@ async function boot() {
       return;
     }
     for (const s of sprites) s.dispose();
+    // 三维素材目录与 thumb 同一宿主前缀。目录名优先 model3d.assetId，否则用宠物 id（演示为 model3d-demo）。
+    if (pet.presentation === 'model3d' || (pet.model3d && (pet.model3d.assetId || pet.model3d.meta))) {
+      const assetId = (pet.model3d && pet.model3d.assetId) || pet.id || 'model3d-demo';
+      pet.model3dAssetBase = BASE + '/model3d/' + encodeURIComponent(String(assetId)) + '/';
+    }
     sprites = [new PetSprite(pet)];
     window.__dshPetDebug.configOk = true;
     window.__dshPetDebug.spriteCount = sprites.length;
