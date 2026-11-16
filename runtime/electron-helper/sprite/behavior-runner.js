@@ -9,11 +9,13 @@
 'use strict';
 
 const CLIP_SLOTS = ['idle', 'walk', 'turn', 'sit', 'wave', 'happy', 'drag'];
-const ROAM_MIN_MS = 8000;
-const ROAM_MAX_MS = 15000;
-const ROAM_IDLE_MS = 2000;
+const ROAM_MIN_MS = 5000;
+const ROAM_MAX_MS = 9000;
+const ROAM_IDLE_MS = 1600;
 const CLIP_END_FALLBACK_MS = 1500;
 const ROAM_MARGIN = 0.12;
+/** 原地表演优先：用户要的是动作效果，不是只会挪窗口 */
+const EXPRESSIVE_CLIPS = ['happy', 'wave', 'turn'];
 
 /**
  * 漫游只读配置里的 `pet.spine.meta`（经 parseSpineMeta）。
@@ -181,12 +183,13 @@ function createBehaviorRunner(sprite, opts) {
     }
 
     playClip(step.clip, step.loop);
-    const timed =
-      step.until === 'duration' && Number.isFinite(step.durationMs) && step.durationMs > 0
-        ? step.durationMs
-        : Number.isFinite(step.durationMs) && step.durationMs > 0
-          ? step.durationMs
-          : clipEndMs;
+    let timed =
+      Number.isFinite(step.durationMs) && step.durationMs > 0 ? step.durationMs : clipEndMs;
+    // play 之后可读真实骨骼动画时长，避免表演被砍半截
+    const sec = sprite.presentation && Number(sprite.presentation.clipDurationSec);
+    if (Number.isFinite(sec) && sec > 0.2) {
+      timed = Math.max(timed, Math.ceil(sec * 1000) + 200);
+    }
     waitThen(timed, myToken, next);
   }
 
@@ -224,19 +227,49 @@ function createBehaviorRunner(sprite, opts) {
     finishPlan();
   }
 
+  function pickExpressiveClip() {
+    const clips = clipsOf(sprite);
+    const pool = EXPRESSIVE_CLIPS.filter((slot) => typeof clips[slot] === 'string' && clips[slot]);
+    if (!pool.length) return 'idle';
+    return pool[Math.floor(random() * pool.length)];
+  }
+
+  function actionDurationMs(clipSlot) {
+    // 优先读表现层量到的动画时长；否则给表演动作更长默认，避免 1.5s 砍半截
+    const sec = sprite.presentation && Number(sprite.presentation.clipDurationSec);
+    if (Number.isFinite(sec) && sec > 0.2) return Math.ceil(sec * 1000) + 200;
+    if (clipSlot === 'happy' || clipSlot === 'wave') return 2800;
+    if (clipSlot === 'turn') return 2000;
+    return Math.max(clipEndMs, ROAM_IDLE_MS);
+  }
+
   function submitRoam() {
     if (sprite.frozen || sprite.sleeping) return;
     if (sprite.dragState && sprite.dragState.active) return;
     // 菜单开着、或骨骼一次性/外部片段还在播：这次不抢画面。定时器照常排下一次。
     if (sprite.menuOpen || sprite._spineExternalClip) return;
-    const intent = {
-      source: 'roam',
-      sequence: [{ clip: 'idle', until: 'duration', durationMs: ROAM_IDLE_MS }],
-    };
-    if (!(sprite.pet && sprite.pet.fixedEnabled)) {
-      intent.goal = randomRoamGoal(random);
+    const roll = random();
+    const act = pickExpressiveClip();
+    const actMs = actionDurationMs(act);
+    // ~65% 原地表演（跳/射击/转身）；~35% 走到某处再表演——位移只是配菜
+    if (roll < 0.65 || (sprite.pet && sprite.pet.fixedEnabled)) {
+      submitIntent({
+        source: 'roam',
+        sequence: [
+          { clip: act, until: 'duration', durationMs: actMs },
+          { clip: 'idle', until: 'duration', durationMs: ROAM_IDLE_MS },
+        ],
+      });
+      return;
     }
-    submitIntent(intent);
+    submitIntent({
+      source: 'roam',
+      goal: randomRoamGoal(random),
+      sequence: [
+        { clip: act, until: 'duration', durationMs: actMs },
+        { clip: 'idle', until: 'duration', durationMs: ROAM_IDLE_MS },
+      ],
+    });
   }
 
   function scheduleNextRoam() {

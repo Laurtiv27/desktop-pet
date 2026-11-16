@@ -1,7 +1,6 @@
 /**
  * 真·Spine WebGL 表现层：加载 atlas/skel，按 clip 名播 AnimationState。
  * 依赖先加载的 vendor/spine-webgl.iife.js（全局 `spine`）。
- * 加载失败时调用方应回落 stub。
  *
  * @module dsh-pet/runtime/electron-helper/sprite-presentation-spine
  */
@@ -9,9 +8,8 @@
 
 /**
  * @param {object} [opts]
- * @param {{ root?: string }} [opts.pet]
  * @param {string} [opts.assetBase] 资源目录 URL（默认相对页面 ./spine-demo/）
- * @returns {PetPresentation|null} 无 spine 运行时则 null
+ * @returns {PetPresentation|null}
  */
 function createSpineWebglPresentation(opts) {
   const api = typeof spine !== 'undefined' ? spine : null;
@@ -31,9 +29,13 @@ function createSpineWebglPresentation(opts) {
   let pendingClip = { name: 'idle', loop: true };
   let ready = false;
   let disposed = false;
+  let boundsOffset = null;
+  let boundsSize = null;
 
   const pres = {
     loop: true,
+    /** 当前动画时长（秒），供 runner 估 clip-end；未就绪为 0 */
+    clipDurationSec: 0,
     mount(parent) {
       if (disposed) return;
       if (canvas) pres.dispose();
@@ -53,7 +55,6 @@ function createSpineWebglPresentation(opts) {
       }
       renderer = new api.SceneRenderer(canvas, gl);
       assetManager = new api.AssetManager(gl, assetBase);
-      // AssetManager 的 pathPrefix 已是 assetBase；load 路径用文件名即可
       assetManager.loadBinary('spineboy-pro.skel');
       assetManager.loadTextureAtlas('spineboy-pma.atlas');
       lastMs = performance.now();
@@ -64,9 +65,7 @@ function createSpineWebglPresentation(opts) {
       const loop = !!(options && options.loop);
       pendingClip = { name, loop };
       pres.loop = loop;
-      if (ready && animationState) {
-        tryApplyClip();
-      }
+      if (ready && animationState) tryApplyClip();
     },
     setFacing(dir) {
       facing = dir === 'right' ? 'right' : 'left';
@@ -117,12 +116,18 @@ function createSpineWebglPresentation(opts) {
       binary.scale = 1;
       const data = binary.readSkeletonData(assetManager.require('spineboy-pro.skel'));
       skeleton = new api.Skeleton(data);
+      boundsOffset = new api.Vector2();
+      boundsSize = new api.Vector2();
       const stateData = new api.AnimationStateData(data);
-      stateData.defaultMix = 0.15;
+      stateData.defaultMix = 0.2;
       animationState = new api.AnimationState(stateData);
       ready = true;
-      applyFacingAndFit();
       tryApplyClip();
+      // 先播一帧再量包围盒，避免 idle 未 apply 时尺寸不准
+      animationState.update(0);
+      animationState.apply(skeleton);
+      updateWorld();
+      applyFacingAndFit();
       return true;
     } catch (err) {
       console.warn('[dsh-pet] Spine 骨架初始化失败', err);
@@ -137,23 +142,47 @@ function createSpineWebglPresentation(opts) {
     if (!anim) {
       console.warn('[dsh-pet] 缺少 Spine 动画: ' + name + '，回落 idle');
       animationState.setAnimation(0, 'idle', true);
+      const idleAnim = skeleton.data.findAnimation('idle');
+      pres.clipDurationSec = (idleAnim && idleAnim.duration) || 1;
       return;
     }
     animationState.setAnimation(0, name, loop);
+    pres.clipDurationSec = anim.duration || 1;
+  }
+
+  function updateWorld() {
+    if (!skeleton) return;
+    if (typeof api.Physics !== 'undefined' && api.Physics.update != null) {
+      skeleton.updateWorldTransform(api.Physics.update);
+    } else {
+      skeleton.updateWorldTransform();
+    }
   }
 
   function applyFacingAndFit() {
-    if (!skeleton || !canvas) return;
+    if (!skeleton || !canvas || !boundsOffset || !boundsSize) return;
     const w = canvas.width;
     const h = canvas.height;
-    // SceneRenderer 的 OrthoCamera 以 (0,0) 为中心、Y 轴向上；不要用左上角像素坐标。
-    const fit = Math.min(w, h) / 380;
+    // 先按单位缩放量包围盒（临时 scale=1）
+    skeleton.scaleX = 1;
+    skeleton.scaleY = 1;
+    skeleton.x = 0;
+    skeleton.y = 0;
+    updateWorld();
+    skeleton.getBounds(boundsOffset, boundsSize, []);
+    const bw = Math.max(1, boundsSize.x);
+    const bh = Math.max(1, boundsSize.y);
+    // 留边：头脚都不要贴边裁切
+    const pad = 0.82;
+    const fit = Math.min((w * pad) / bw, (h * pad) / bh);
     const sx = facing === 'left' ? -fit : fit;
     skeleton.scaleX = sx;
     skeleton.scaleY = Math.abs(fit);
-    skeleton.x = 0;
-    // 脚底略低于中心，让全身落在视口内
-    skeleton.y = -h * 0.28;
+    // OrthoCamera 中心在 (0,0)、Y 向上：把包围盒中心对齐视口中心略偏下
+    const cx = boundsOffset.x + boundsSize.x / 2;
+    const cy = boundsOffset.y + boundsSize.y / 2;
+    skeleton.x = -cx * sx;
+    skeleton.y = -cy * Math.abs(fit) - h * 0.04;
   }
 
   function tick(now) {
@@ -169,11 +198,7 @@ function createSpineWebglPresentation(opts) {
     lastMs = now;
     animationState.update(dt);
     animationState.apply(skeleton);
-    if (typeof api.Physics !== 'undefined' && api.Physics.update != null) {
-      skeleton.updateWorldTransform(api.Physics.update);
-    } else {
-      skeleton.updateWorldTransform();
-    }
+    updateWorld();
     clearTransparent();
     if (!renderer) return;
     renderer.resize(api.ResizeMode.Expand);
