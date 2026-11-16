@@ -25,6 +25,9 @@ export const MIME: Record<string, string> = {
   '.ttf': 'font/ttf',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
+  '.glb': 'model/gltf-binary',
+  '.gltf': 'model/gltf+json',
+  '.bin': 'application/octet-stream',
 };
 
 /** 图片魔数判定需要读到的最大字节数：WebP 要看到第 12 字节。 */

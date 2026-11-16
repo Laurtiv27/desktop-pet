@@ -1,5 +1,5 @@
 /**
- * 静态素材：/font、/pic（含表情包链）、/sound、/thumb 的取文件与路径守卫。
+ * 静态素材：/font、/pic（含表情包链）、/sound、/model3d、/thumb 的取文件与路径守卫。
  *
  * 不决定素材归属，只按给定目录链查找。
  * 依赖（PetRouteDeps）显式传入，模块内不读全局、不建状态。
@@ -24,7 +24,7 @@ export async function handleAssetsRoutes(deps: PetRouteDeps, input: RouteInput):
   // 否则走主素材链：用户 main-animation/<ext> 优先 → 包内 assets/<ext>（所有主配置宠物共用）。
   // mov（HEVC-with-Alpha）不随包发布，用户从 GitHub Release 下载后放 main-animation/mov/，
   // 并把客户端播放常量 ANIMATION_EXT 改为 .mov。
-  // font / pic 是扁平的 /<scope>/<file>，只有 thumb 是 /<scope>/<petId>/<file>：先拆 scope 再各自拆剩余段。
+  // font / pic / sound 是扁平的 /<scope>/<file>；thumb / model3d 是 /<scope>/<petId>/<file>：先拆 scope 再各自拆剩余段。
   const [scope, ...restParts] = rest.split('/');
 
   // 插件 logo / 宠物头像：/logo → 包内 assets/logo.png。只放行这一个文件——不把 assets 根开放成静态目录
@@ -94,6 +94,26 @@ export async function handleAssetsRoutes(deps: PetRouteDeps, input: RouteInput):
     if (soundFile === undefined) return { kind: 'text', status: 404, body: 'dsh-pet: sound not found' };
     const ext = soundFile.slice(soundFile.lastIndexOf('.')).toLowerCase();
     return { kind: 'file', file: soundFile, contentType: MIME[ext] ?? 'application/octet-stream' };
+  }
+
+  if (scope === 'model3d') {
+    const [petId, ...nameParts] = restParts;
+    if (!petId || nameParts.length === 0) {
+      return { kind: 'text', status: 400, body: 'dsh-pet: expected /dsh-pet-7340/model3d/<petId>/<file>' };
+    }
+    if (!isValidPetId(petId)) {
+      return { kind: 'text', status: 400, body: 'dsh-pet: invalid pet id' };
+    }
+    const fileName = nameParts.join('/');
+    const ext = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
+    const allowed = new Set(['.glb', '.gltf', '.bin', '.json', '.png', '.jpg', '.jpeg', '.webp']);
+    if (!allowed.has(ext)) {
+      return { kind: 'text', status: 400, body: 'dsh-pet: unsupported model3d format' };
+    }
+    const root = join(PACKAGE_ROOT, 'assets', 'model3d', petId);
+    const file = resolveExisting(root, fileName);
+    if (file === undefined) return { kind: 'text', status: 404, body: 'dsh-pet: model3d asset not found' };
+    return { kind: 'file', file, contentType: MIME[ext] ?? 'application/octet-stream' };
   }
 
   if (scope !== 'thumb') {
