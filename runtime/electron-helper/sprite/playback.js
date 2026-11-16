@@ -173,6 +173,7 @@ Object.assign(PetSprite.prototype, {
       // 停住正在播的那一段：宿主停不掉一段视频，完全静止只能由渲染端执行；只堵随机链入口不够，
       // 那个入口要等动画播完才被调用。
       this.stopMove();
+      this.cancelPlan('user');
       if (el) el.pause();
       // 播放回执：冻结打断了正在播的第三方点播 → 如实回 cancelled，而不是让它一直挂着 playing
       // （挂 wait=ended 的调用方会白等一个 timeout）。解冻走的是回 idle/恢复档位，不会把它接回来。

@@ -223,6 +223,56 @@ describe('createBehaviorRunner.submitIntent', () => {
     assert.equal(runner.currentPriority, 0);
     assert.equal(sprite.moveRef, null);
   });
+
+  test('arrive 进行中仅 stopMove 不能提交 roam，cancelPlan 后可提交', () => {
+    const { sprite, runner } = loadHarness();
+    assert.equal(
+      runner.submitIntent({
+        source: 'roam',
+        goal: { xRatio: 0.9, yRatio: 0.5 },
+        sequence: [{ clip: 'idle', until: 'duration', durationMs: 4000 }],
+      }),
+      true,
+    );
+    assert.ok(sprite.moveRef !== null);
+    sprite.stopMove();
+    assert.equal(sprite.moveRef, null);
+    assert.ok(runner.currentPlan, 'stopMove 不得清计划（playIdle 依赖此顺序）');
+    assert.equal(runner.currentPriority, 10);
+    assert.equal(
+      runner.submitIntent({
+        source: 'roam',
+        goal: { xRatio: 0.2, yRatio: 0.5 },
+        sequence: [{ clip: 'idle', until: 'duration', durationMs: 10 }],
+      }),
+      false,
+    );
+    runner.cancelPlan('user');
+    assert.equal(runner.currentPlan, null);
+    assert.equal(runner.currentPriority, 0);
+    assert.equal(
+      runner.submitIntent({
+        source: 'roam',
+        goal: { xRatio: 0.2, yRatio: 0.5 },
+        sequence: [{ clip: 'idle', until: 'duration', durationMs: 10 }],
+      }),
+      true,
+    );
+  });
+
+  test('缺少 clips.walk 且 goal 远时 submitIntent 失败且不启动位移', () => {
+    const { sprite, runner, plays } = loadHarness();
+    sprite.pet.spine.meta.clips = { idle: 'Idle' };
+    const ok = runner.submitIntent({
+      source: 'roam',
+      goal: { xRatio: 0.9, yRatio: 0.5 },
+      sequence: [{ clip: 'idle', until: 'duration', durationMs: 40 }],
+    });
+    assert.equal(ok, false);
+    assert.equal(runner.currentPlan, null);
+    assert.equal(sprite.moveRef, null);
+    assert.equal(plays.length, 0);
+  });
 });
 
 describe('规则漫游', () => {
@@ -287,5 +337,20 @@ describe('接入点源码守卫', () => {
     const menu = readFileSync(menuPath, 'utf8');
     assert.match(input, /cancelPlan\(\s*['"]user['"]\s*\)/);
     assert.match(menu, /cancelPlan\(\s*['"]menu['"]\s*\)/);
+  });
+
+  test('onContextMenu / goHome / applyFreeze 在 stopMove 之外 cancelPlan', () => {
+    const menu = readFileSync(menuPath, 'utf8');
+    const playback = readFileSync(playbackPath, 'utf8');
+    const ctx = menu.slice(menu.indexOf('async onContextMenu'), menu.indexOf('  onMenuAction('));
+    assert.match(ctx, /this\.stopMove\(\)/);
+    assert.match(ctx, /this\.cancelPlan\(\s*['"]menu['"]\s*\)/);
+    const home = menu.slice(menu.indexOf('  goHome()'), menu.indexOf('  postureMenuBranch('));
+    assert.match(home, /this\.stopMove\(\)/);
+    assert.match(home, /this\.cancelPlan\(\s*['"](?:menu|user)['"]\s*\)/);
+    const freeze = playback.slice(playback.indexOf('  applyFreeze('), playback.indexOf('  setLock('));
+    const freezeOn = freeze.slice(0, freeze.indexOf('占用锁解除'));
+    assert.match(freezeOn, /this\.stopMove\(\)/);
+    assert.match(freezeOn, /this\.cancelPlan\(\s*['"]user['"]\s*\)/);
   });
 });

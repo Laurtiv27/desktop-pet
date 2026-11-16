@@ -181,12 +181,13 @@ function createBehaviorRunner(sprite, opts) {
     if (runner.currentPlan && !S.canInterrupt(runner.currentPriority, intent)) return false;
     const clips = clipsOf(sprite);
     const walkClip = S.mapPresentationClip('walk', clips);
+    const hasWalkClip = Boolean(clips && clips.walk);
     const planned = S.planBehavior({
       intent,
       allowedClips: allowedClipsOf(sprite),
       clips,
       walkClip,
-      hasWalkClip: true,
+      hasWalkClip,
       current: currentRatioOf(sprite),
     });
     if (!planned.ok) {
