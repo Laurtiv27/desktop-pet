@@ -1,10 +1,6 @@
 # desktop-pet
 
 <p align="center">
-  <img src="assets/logo.png" alt="desktop-pet" width="120" />
-</p>
-
-<p align="center">
   <strong>开源透明桌宠 · Open-source Transparent Desktop Pet</strong><br/>
   WebM 视频 · Spine 2D 骨骼 · glTF/GLB 真 3D<br/>
   可拖拽 · 可多开 · 坐姿守护 · 屏幕感知 · 可选 AI
@@ -17,11 +13,22 @@
   <a href="https://github.com/Laurtiv27/desktop-pet/stargazers"><img src="https://img.shields.io/github/stars/Laurtiv27/desktop-pet?style=social" alt="Stars" /></a>
 </p>
 
-<p align="center">
-  <img src="assets/preview/daiji-huxi-xiuxian.gif" alt="idle preview" width="260" />
-  <img src="assets/preview/dianji-huiying-kaixin-yuedong.gif" alt="click preview" width="260" />
-  <img src="assets/preview/spine-yanling-desktop.png" alt="Spine desktop preview" width="260" />
-</p>
+<table align="center">
+  <tr>
+    <td align="center" width="33%">
+      <img src="assets/preview/mode-webm.png" alt="WebM video pet" width="280" /><br/>
+      <sub><b>WebM</b> · 透明视频序列</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="assets/preview/mode-spine.png" alt="Spine skeletal pet on desktop" width="280" /><br/>
+      <sub><b>Spine</b> · 2D 骨骼桌宠</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="assets/preview/mode-glb.png" alt="glTF / GLB 3D pet" width="280" /><br/>
+      <sub><b>GLB</b> · 真 3D 骨骼</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
