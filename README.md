@@ -76,7 +76,7 @@ npm run start:app       # Electron 应用模式
 npm run dist            # 打包分发
 ```
 
-试用三维演示：把 [`assets/model3d/blocky-hero/pet-snippet.jsonc`](assets/model3d/blocky-hero/pet-snippet.jsonc) 追加到用户配置 `~/.dsh/dsh-pet/main-config.jsonc` 的 `pets`（勿覆盖默认女仆），然后重启 `standalone`。
+试用三维演示：把 [`assets/model3d/model3d-demo/pet-snippet.jsonc`](assets/model3d/model3d-demo/pet-snippet.jsonc) 追加到用户配置 `~/.dsh/dsh-pet/main-config.jsonc` 的 `pets`（勿覆盖默认女仆），然后重启 `standalone`。
 
 试用 Spine 演示：见 [`docs/spine-free-motion.md`](docs/spine-free-motion.md)；焰灵等素材请遵守原站授权。
 
@@ -137,7 +137,7 @@ docs/               # Spine / model3d 设计与用法
 - 上游项目：[dsh-pet](https://github.com/PC2005-cloud/dsh-pet)
 - 宠物动作素材：[AI 跟图 · 宠物动画](https://aigengtu.com/pet-anims)
 - Spine 演示素材来源：[金猪资产库 · Spine](https://www.357p.com/spines/)（第三方站点；授权以原站为准）
-- 方块人三维演示：Popyca Blocky Characters 免费样例（CC0）
+- 三维演示小狐狸：Khronos glTF Sample Models · Fox（见 `assets/model3d/model3d-demo/NOTICE.txt`）
 
 ## License
 
