@@ -7,17 +7,25 @@ export function normalizePresentation(raw: unknown): PresentationKind {
   return 'video';
 }
 
+const MODEL3D_CLICK_SLOTS = ['wave', 'happy', 'dance', 'punch', 'jump', 'cheer'] as const;
+
 export function createModel3dAnimationStub(clips?: unknown): Animations {
   let idle = 'idle';
+  const clicks: string[] = [];
   if (clips && typeof clips === 'object' && !Array.isArray(clips)) {
-    const v = (clips as Record<string, unknown>).idle;
+    const record = clips as Record<string, unknown>;
+    const v = record.idle;
     if (typeof v === 'string' && v) idle = v;
+    // 点击播槽位名（经 meta.clips 映射），不把位移绑进来。
+    for (const slot of MODEL3D_CLICK_SLOTS) {
+      if (typeof record[slot] === 'string' && record[slot]) clicks.push(slot);
+    }
   }
   return {
     idle: [idle],
     turn: [],
     drag: [],
-    clicks: [],
+    clicks,
     moves: { default: {}, actions: [] },
     categories: [],
     events: {},

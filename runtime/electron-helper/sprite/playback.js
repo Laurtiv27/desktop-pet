@@ -320,7 +320,7 @@ Object.assign(PetSprite.prototype, {
       const idleName = (idlePool && idlePool.length && S.pick(idlePool, this.anim)) || 'idle';
       // 第二参 false = 循环。idle 在 playModel3dPresentation 里再强制 loop:true。
       this.switchTo(idleName, false);
-      // autoBehavior === false 时 startRoam 直接返回，只保循环待机。开着则定时走随机目标。
+      // startRoam：autoBehavior 开→窗口漫游；关→原地换剪辑（含 walk），不位移。
       if (typeof this.startRoam === 'function') this.startRoam();
       return;
     }

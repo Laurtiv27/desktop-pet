@@ -1,0 +1,13 @@
+﻿{
+  "glb": "character.glb",
+  "clips": {
+    "idle": "tools_preview",
+    "walk": "tools_preview"
+  },
+  "walkSpeedPx": 100,
+  "scale": 1,
+  "pivot": { "x": 0, "y": 0, "z": 0 },
+  "camera": { "kind": "perspective", "fov": 30, "distance": 3.2 },
+  "facingMode": "mirror",
+  "autoBehavior": false
+}

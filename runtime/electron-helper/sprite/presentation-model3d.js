@@ -32,6 +32,10 @@ function createModel3dPresentation(opts) {
   let presentation;
   let currentAction = null;
   let paused = false;
+  let modelRoot = null;
+  let modelBaseY = 0;
+  let proceduralIdle = false;
+  let proceduralT = 0;
   const state = { facing: 'left', loop: true, currentClip: '', onEnded: null };
 
   function mount(parent) {
@@ -70,6 +74,11 @@ function createModel3dPresentation(opts) {
       const dt = clock.getDelta();
       // 冻结时仍抽干 clock，避免解冻第一帧把整段暂停时长灌进 mixer。
       if (mixer && !paused) mixer.update(dt);
+      if (proceduralIdle && modelRoot && !paused) {
+        // 素材只有单关键帧「假动画」时：轻微呼吸起伏，避免完全冻尸。
+        proceduralT += dt;
+        modelRoot.position.y = modelBaseY + Math.sin(proceduralT * 2.1) * 0.012;
+      }
       const hidden = typeof document !== 'undefined' && document.hidden;
       if (paused || hidden) return;
       const nowSec = performance.now() / 1000;
@@ -95,6 +104,23 @@ function createModel3dPresentation(opts) {
         model.scale.setScalar(s);
         if (meta.pivot) model.position.set(meta.pivot.x || 0, meta.pivot.y || 0, meta.pivot.z || 0);
         root.add(model);
+        modelRoot = model;
+        modelBaseY = model.position.y || 0;
+        // 按包围盒重取景：不同 Sketchfab/DCC 导出尺度差很大，固定 lookAt 会裁头或只剩脚。
+        if (camera && typeof THREE.Box3 === 'function') {
+          const box = new THREE.Box3().setFromObject(model);
+          if (!box.isEmpty()) {
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const height = Math.max(size.y, 0.01);
+            const baseDist = (meta.camera && meta.camera.distance) || 4;
+            const dist = Math.max(baseDist, height * 2.1, size.x * 1.4, size.z * 1.4);
+            const eyeY = center.y + height * 0.08;
+            camera.position.set(center.x, eyeY, center.z + dist);
+            camera.lookAt(center.x, center.y, center.z);
+            camera.updateProjectionMatrix();
+          }
+        }
         mixer = new THREE.AnimationMixer(model);
         mixer.timeScale = paused ? 0 : 1;
         mixer.addEventListener('finished', onClipFinished);
@@ -161,9 +187,26 @@ function createModel3dPresentation(opts) {
       state.onEnded = null;
       currentAction = null;
       mixer.stopAllAction();
-      console.warn('[dsh-pet] model3d 未找到动画', slotOrName);
+      proceduralIdle = true;
+      console.warn('[dsh-pet] model3d 未找到动画', slotOrName, '→ 程序待机');
       return;
     }
+    // Sketchfab 部分转换 GLB 会带「动画名」但只有 1 个关键帧（duration≈0），看起来像没动作。
+    if (!(clip.duration > 0.05)) {
+      mixer.stopAllAction();
+      currentAction = null;
+      proceduralIdle = true;
+      console.warn(
+        '[dsh-pet] model3d 动画无有效时长 name=' +
+          clip.name +
+          ' duration=' +
+          clip.duration +
+          ' → 程序待机（请换带真实 idle/walk 的 GLB）',
+      );
+      return;
+    }
+    proceduralIdle = false;
+    if (modelRoot) modelRoot.position.y = modelBaseY;
     mixer.stopAllAction();
     const action = mixer.clipAction(clip);
     currentAction = action;

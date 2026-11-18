@@ -3,7 +3,8 @@
  *
  * model3d 没有 video.ended，duration 与 clip-end 都由本模块的定时器收尾。
  * arrive 步播走路并调用 startSpeedMoveDrive（goal 是 xRatio/yRatio，不是像素原点）。
- * autoBehavior === false 时 startRoam 直接返回，只留循环待机。
+ * autoBehavior === true：定时漫游（walk 剪辑 + 窗口位移）。
+ * autoBehavior !== true：定时原地表演（可播 walk/wave 等剪辑，不移动窗口）——剪辑与位移是两回事。
  * 须在 sprite.js、presentation、motion 之后加载。
  * @module dsh-pet/runtime/electron-helper/sprite-behavior-runner
  */
@@ -12,8 +13,14 @@
 const CLIP_SLOTS = ['idle', 'walk', 'turn', 'sit', 'wave', 'happy', 'drag'];
 const ROAM_MIN_MS = 5000;
 const ROAM_MAX_MS = 9000;
+const INPLACE_MIN_MS = 4000;
+const INPLACE_MAX_MS = 7000;
 const CLIP_END_FALLBACK_MS = 1500;
 const ROAM_MARGIN = 0.12;
+/** 原地表演优先用这些槽；不含 idle（那是默认态），不含 death/drag。 */
+const INPLACE_PREF = ['walk', 'wave', 'happy', 'dance', 'run', 'jump', 'cheer', 'punch'];
+/** 这些槽按一段时长循环播；其余一次性播到 clip-end。 */
+const INPLACE_LOOP = new Set(['walk', 'run', 'wave', 'happy', 'dance', 'cheer', 'fall']);
 
 /**
  * 漫游与白名单只读已解析的 model3d meta（init 里 parseModel3dMeta 的结果，或配置内联原文）。
@@ -134,6 +141,8 @@ function createBehaviorRunner(sprite, opts) {
     _stepTimer: null,
     _roamTimer: null,
     _roamStarted: false,
+    _inplaceTimer: null,
+    _inplaceStarted: false,
     submitIntent(intent) {
       return submitIntent(intent);
     },
@@ -145,6 +154,12 @@ function createBehaviorRunner(sprite, opts) {
     },
     stopRoam() {
       stopRoam();
+    },
+    startInPlaceActs() {
+      startInPlaceActs();
+    },
+    stopInPlaceActs() {
+      stopInPlaceActs();
     },
   };
 
@@ -343,9 +358,12 @@ function createBehaviorRunner(sprite, opts) {
   }
 
   function startRoam() {
-    // autoBehavior === false：调用方（playIdle）可以无条件调进来，这里直接停表返回。
+    // 开漫游时关掉原地表演，避免两套定时器抢意图。
+    if (roamEnabled()) stopInPlaceActs();
     if (!roamEnabled()) {
       stopRoam();
+      // 不位移时改走原地表演：仍可播 walk 等剪辑。
+      startInPlaceActs();
       return;
     }
     if (runner._roamStarted) return;
@@ -358,6 +376,71 @@ function createBehaviorRunner(sprite, opts) {
     if (runner._roamTimer != null) {
       window.clearTimeout(runner._roamTimer);
       runner._roamTimer = null;
+    }
+  }
+
+  /** 从 meta.clips 里挑可原地表演的槽（有映射才算有）。 */
+  function inplaceSlotsOf() {
+    const clips = clipsOf(sprite);
+    const out = [];
+    for (const slot of INPLACE_PREF) {
+      if (typeof clips[slot] === 'string' && clips[slot]) out.push(slot);
+    }
+    return out;
+  }
+
+  function submitInPlaceAct() {
+    if (roamEnabled() || roamBlocked()) return;
+    if (runner.currentPlan) return;
+    const slots = inplaceSlotsOf();
+    if (!slots.length) return;
+    const clip = slots[Math.floor(random() * slots.length)] || slots[0];
+    if (INPLACE_LOOP.has(clip)) {
+      const durationMs = 2200 + Math.floor(random() * 1800);
+      submitIntent({
+        source: 'roam',
+        sequence: [{ clip, until: 'duration', durationMs, loop: true }],
+      });
+      return;
+    }
+    submitIntent({
+      source: 'roam',
+      sequence: [{ clip, until: 'clip-end', loop: false }],
+    });
+  }
+
+  function scheduleNextInPlace() {
+    if (!runner._inplaceStarted) return;
+    const span = Math.max(0, INPLACE_MAX_MS - INPLACE_MIN_MS);
+    const wait = INPLACE_MIN_MS + Math.floor(random() * (span || 1));
+    runner._inplaceTimer = window.setTimeout(() => {
+      runner._inplaceTimer = null;
+      submitInPlaceAct();
+      scheduleNextInPlace();
+    }, wait);
+  }
+
+  function startInPlaceActs() {
+    if (roamEnabled()) {
+      stopInPlaceActs();
+      return;
+    }
+    if (runner._inplaceStarted) return;
+    if (!inplaceSlotsOf().length) return;
+    runner._inplaceStarted = true;
+    // 首拍稍晚，先让 idle 露一小会儿。
+    runner._inplaceTimer = window.setTimeout(() => {
+      runner._inplaceTimer = null;
+      submitInPlaceAct();
+      scheduleNextInPlace();
+    }, 1500 + Math.floor(random() * 1500));
+  }
+
+  function stopInPlaceActs() {
+    runner._inplaceStarted = false;
+    if (runner._inplaceTimer != null) {
+      window.clearTimeout(runner._inplaceTimer);
+      runner._inplaceTimer = null;
     }
   }
 
@@ -388,6 +471,7 @@ Object.assign(PetSprite.prototype, {
   stopRoam() {
     if (!this.behaviorRunner) return;
     this.behaviorRunner.stopRoam();
+    this.behaviorRunner.stopInPlaceActs();
   },
 
   /** 拖拽成立后：有 drag 槽才换片段；Fox 演示没有该槽，保持当前画面。 */

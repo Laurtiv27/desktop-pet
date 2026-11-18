@@ -1,0 +1,4 @@
+Source: Popyca — "8 Free Blocky Characters" (CC0 1.0), sample from Blocky-Characters-FREE-Sample-8.
+File: blocky_01_hero.glb (renamed to character.glb).
+Clips: idle, walk, run, jump, fall, wave, punch, death, cheer, dance.
+License: see LICENSE.txt (CC0 / public domain dedication).

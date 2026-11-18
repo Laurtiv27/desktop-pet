@@ -27,6 +27,17 @@ test('model3d 缺 animations 用 stub，idle 来自 meta clips', () => {
   assert.deepEqual(setup.animations.idle, ['Survey']);
 });
 
+test('model3d stub 把可点槽填进 clicks', () => {
+  const animations = createModel3dAnimationStub({
+    idle: 'idle',
+    walk: 'walk',
+    wave: 'wave',
+    happy: 'cheer',
+    dance: 'dance',
+  });
+  assert.deepEqual(animations.clicks, ['wave', 'happy', 'dance']);
+});
+
 test('model3d 有 animations 时不使用 stub', () => {
   const animations = createModel3dAnimationStub({ idle: 'FromClips' });
   const setup = resolvePetPlaybackSetup({

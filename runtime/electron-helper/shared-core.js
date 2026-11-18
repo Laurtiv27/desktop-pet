@@ -81,17 +81,28 @@ function normalizePresentation(raw) {
 	if (raw === "model3d") return "model3d";
 	return "video";
 }
+const MODEL3D_CLICK_SLOTS = [
+	"wave",
+	"happy",
+	"dance",
+	"punch",
+	"jump",
+	"cheer"
+];
 function createModel3dAnimationStub(clips) {
 	let idle = "idle";
+	const clicks = [];
 	if (clips && typeof clips === "object" && !Array.isArray(clips)) {
-		const v = clips.idle;
+		const record = clips;
+		const v = record.idle;
 		if (typeof v === "string" && v) idle = v;
+		for (const slot of MODEL3D_CLICK_SLOTS) if (typeof record[slot] === "string" && record[slot]) clicks.push(slot);
 	}
 	return {
 		idle: [idle],
 		turn: [],
 		drag: [],
-		clicks: [],
+		clicks,
 		moves: {
 			default: {},
 			actions: []

@@ -1,0 +1,21 @@
+{
+  "glb": "character.glb",
+  "clips": {
+    "idle": "idle",
+    "walk": "walk",
+    "run": "run",
+    "jump": "jump",
+    "wave": "wave",
+    "happy": "cheer",
+    "dance": "dance",
+    "punch": "punch",
+    "death": "death",
+    "fall": "fall"
+  },
+  "walkSpeedPx": 120,
+  "scale": 1,
+  "pivot": { "x": 0, "y": 0, "z": 0 },
+  "camera": { "kind": "perspective", "fov": 30, "distance": 4 },
+  "facingMode": "mirror",
+  "autoBehavior": false
+}

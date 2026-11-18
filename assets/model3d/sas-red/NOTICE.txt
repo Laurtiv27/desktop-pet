@@ -1,0 +1,4 @@
+﻿Sketchfab：sas__cs2_agent_model_red.glb（Converted GLB 1k）。
+动画：用 scripts/blender/retarget_mixamo_to_sas.py，从本机 Soldier.glb（Mixamo）
+重定向到 CS2 骨骼，烘焙 idle / walk / run（原地，已去掉水平位移）。
+请遵守原模型与 Mixamo/Soldier 各自许可，勿擅自再分发。
