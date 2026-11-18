@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 512px;
+        height: 512px;
+        background: transparent;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 512px;
+        height: 512px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c" width="512" height="512"></canvas>
+    <script src="../runtime/electron-helper/vendor/spine-webgl-3.8.js"></script>
+    <script>
+      (async function () {
+        const canvas = document.getElementById('c');
+        const w = 512;
+        const h = 512;
+        const gl = canvas.getContext('webgl', {
+          alpha: true,
+          premultipliedAlpha: true,
+          antialias: true,
+          preserveDrawingBuffer: true,
+        });
+        const api = window.spine;
+        if (!api || !api.webgl || !gl) {
+          document.title = 'spine-fail-api';
+          return;
+        }
+        const base = '../runtime/electron-helper/spine-demo/';
+        const skeletonFile = base + 'skeleton.skel';
+        const atlasFile = base + 'skeleton.atlas';
+
+        const mvp = new api.webgl.Matrix4();
+        const shader = api.webgl.Shader.newTwoColoredTextured(gl);
+        const batcher = new api.webgl.PolygonBatcher(gl);
+        const skeletonRenderer = new api.webgl.SkeletonRenderer(gl);
+        const assetManager = new api.webgl.AssetManager(gl, '');
+        assetManager.loadBinary(skeletonFile);
+        assetManager.loadTextureAtlas(atlasFile);
+
+        await new Promise((resolve, reject) => {
+          const t = setInterval(() => {
+            if (!assetManager.isLoadingComplete()) return;
+            clearInterval(t);
+            if (assetManager.hasErrors()) reject(assetManager.getErrors());
+            else resolve();
+          }, 20);
+        }).catch((e) => {
+          console.error(e);
+          document.title = 'spine-asset-fail';
+          throw e;
+        });
+
+        const atlas = assetManager.get(atlasFile);
+        const atlasLoader = new api.AtlasAttachmentLoader(atlas);
+        const binary = new api.SkeletonBinary(atlasLoader);
+        binary.scale = 1;
+        const skelData = binary.readSkeletonData(assetManager.get(skeletonFile));
+        const skeleton = new api.Skeleton(skelData);
+        const boundsOffset = new api.Vector2();
+        const boundsSize = new api.Vector2();
+        const stateData = new api.AnimationStateData(skelData);
+        stateData.defaultMix = 0.15;
+        const state = new api.AnimationState(stateData);
+        const anim =
+          skelData.findAnimation('skin01_idle') ||
+          skelData.findAnimation('skin00_idle') ||
+          skelData.animations[0];
+        if (anim) state.setAnimation(0, anim.name, true);
+        console.info('picked', anim && anim.name);
+
+        function fit() {
+          skeleton.scaleX = 1;
+          skeleton.scaleY = 1;
+          skeleton.x = 0;
+          skeleton.y = 0;
+          skeleton.updateWorldTransform();
+          skeleton.getBounds(boundsOffset, boundsSize, []);
+          const bw = Math.max(1, boundsSize.x);
+          const bh = Math.max(1, boundsSize.y);
+          const pad = 0.82;
+          const fitScale = Math.min((w * pad) / bw, (h * pad) / bh);
+          skeleton.scaleX = -fitScale; // face left like desktop default
+          skeleton.scaleY = Math.abs(fitScale);
+          const cx = boundsOffset.x + boundsSize.x / 2;
+          const cy = boundsOffset.y + boundsSize.y / 2;
+          skeleton.x = w / 2 - cx * skeleton.scaleX;
+          skeleton.y = h / 2 - cy * Math.abs(fitScale) - h * 0.04;
+          mvp.ortho2d(0, 0, w - 1, h - 1);
+        }
+
+        state.update(0);
+        state.apply(skeleton);
+        skeleton.updateWorldTransform();
+        fit();
+
+        let last = performance.now();
+        function frame(now) {
+          const dt = Math.min(0.05, (now - last) / 1000);
+          last = now;
+          state.update(dt);
+          state.apply(skeleton);
+          skeleton.updateWorldTransform();
+          gl.viewport(0, 0, w, h);
+          gl.clearColor(0, 0, 0, 0);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+          shader.bind();
+          shader.setUniformi(api.webgl.Shader.SAMPLER, 0);
+          shader.setUniform4x4f(api.webgl.Shader.MVP_MATRIX, mvp.values);
+          batcher.begin(shader);
+          skeletonRenderer.premultipliedAlpha = false;
+          skeletonRenderer.draw(batcher, skeleton);
+          batcher.end();
+          shader.unbind();
+          requestAnimationFrame(frame);
+        }
+
+        window.__glCanvas = canvas;
+        window.__samplePixels = function () {
+          const buf = new Uint8Array(4);
+          gl.readPixels(256, 256, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+          return Array.from(buf);
+        };
+        document.title = 'spine-ready';
+        requestAnimationFrame((t0) => {
+          frame(t0);
+          requestAnimationFrame((t1) => {
+            frame(t1);
+            console.info('pixelSample', window.__samplePixels());
+            requestAnimationFrame(frame);
+          });
+        });
+      })().catch((e) => console.error(e));
+    </script>
+  </body>
+</html>
