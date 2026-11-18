@@ -16,16 +16,16 @@
 <table align="center">
   <tr>
     <td align="center" width="33%">
-      <img src="assets/preview/mode-webm.png" alt="WebM video pet" width="280" /><br/>
+      <img src="assets/preview/mode-webm.gif" alt="WebM video pet" width="280" /><br/>
       <sub><b>WebM</b> · 透明视频序列</sub>
     </td>
     <td align="center" width="33%">
-      <img src="assets/preview/mode-spine.png" alt="Spine skeletal pet on desktop" width="280" /><br/>
-      <sub><b>Spine</b> · 2D 骨骼桌宠</sub>
+      <img src="assets/preview/mode-spine.gif" alt="Spine skeletal pet" width="280" /><br/>
+      <sub><b>Spine</b> · 2D 骨骼</sub>
     </td>
     <td align="center" width="33%">
-      <img src="assets/preview/mode-glb.png" alt="glTF / GLB 3D pet" width="280" /><br/>
-      <sub><b>GLB</b> · 真 3D 骨骼</sub>
+      <img src="assets/preview/mode-glb.gif" alt="glTF / GLB fox pet" width="280" /><br/>
+      <sub><b>GLB</b> · 真 3D（小狐狸）</sub>
     </td>
   </tr>
 </table>

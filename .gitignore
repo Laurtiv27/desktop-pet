@@ -17,3 +17,7 @@ docs/superpowers/
 
 assets/model3d/sas-red/character.glb
 assets/model3d/sas-red/character.glb.bak
+
+# README 预览渲染临时帧
+assets/preview/_fox_frames/
+assets/preview/_spine_frames/
