@@ -7,7 +7,7 @@
 - **表现**：Three.js + glTF/GLB，固定机位，透明 Electron 窗
 - **配置**：`presentation: "model3d"` + `model3d` 资源 / meta
 - **行为**：与 video / Spine 同构的 Intent + BehaviorPlanner；位移走现有窗口 bounds
-- **分支**：`feat/model3d-presentation`（基于 main，独立于 Spine 分支）
+- **状态**：已合入 `main`（与 video / spine 三轨共存）
 - **首版验收**：演示 GLB 的 `idle` 循环、`walk` + 窗口移动、拖拽；`autoBehavior` 可关
 
 ## 非目标（首版）

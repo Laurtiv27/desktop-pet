@@ -1,6 +1,6 @@
 # Spine 骨骼双轨说明
 
-分支：`feat/spine-free-motion`（**尚未合并 `main`**）
+状态：已合入 `main`（与 video / model3d 三轨共存）
 
 视频宠（webm）与骨骼宠（Spine）可同时存在：`pets[].presentation` 为 `"video"`（缺省）或 `"spine"`。
 
@@ -22,7 +22,7 @@
 ## 试用
 
 ```bash
-git checkout feat/spine-free-motion
+git checkout main
 npm install
 npm run build
 npm run standalone

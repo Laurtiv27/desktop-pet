@@ -4,13 +4,13 @@
 
 **Goal:** 在 Electron 透明窗内以 Three.js + glTF 渲染一只可待机循环、走路位移、拖拽的 3D 桌宠，并与现有 webm 宠双轨共存。
 
-**Architecture:** 从 `main` 上的 `feat/model3d-presentation` 引入与 Spine 规格同构的 Intent/Planner 与可插拔 Presentation；桌面端新增 `Model3dPresentation`（Three.js IIFE vendor + 表现层脚本），按 `walkSpeedPx` 驱动现有 `sendBounds`；不合并、不依赖 `feat/spine-free-motion` 的 Spine 运行时。
+**Architecture:** 与 Spine 规格同构的 Intent/Planner 与可插拔 Presentation；桌面端 `Model3dPresentation`（Three.js IIFE vendor + 表现层脚本），按 `walkSpeedPx` 驱动现有 `sendBounds`。已与 Spine 表现层一并合入 `main`。
 
 **Tech Stack:** Electron helper（classic script）、Three.js r170+（bundled IIFE）、glTF/GLB、Node 测试（`node --test`）、现有 `shared-core` / `PetSprite`。
 
 ## Global Constraints
 
-- 分支：`feat/model3d-presentation`（已基于 main）；**禁止**合并或 cherry-pick Spine 运行时文件作为依赖
+- 分支：已合入 `main`；Spine / model3d 运行时并存、互不替代
 - `presentation` 缺省 `"video"`；联合类型含 `"spine"` 但本计划**不实现** Spine
 - `idle` **必须循环**；`autoBehavior === false` 时禁止随机漫游
 - 固定机位；朝向默认 `facingMode: "mirror"`

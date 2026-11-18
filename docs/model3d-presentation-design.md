@@ -16,7 +16,7 @@
 | 相机 | **固定机位**；左右朝向用动画或水平镜像，不提供自由旋转查看 |
 | 渲染栈 | **Three.js + GLTFLoader + AnimationMixer** |
 | 与现有宠物 | **多轨共存**：`presentation: "video" \| "spine" \| "model3d"` |
-| 分支策略 | 从 **main** 拉独立分支 `feat/model3d-presentation`；**不依赖、不合并** `feat/spine-free-motion` |
+| 分支策略 | 已合入 **main**；与 Spine / video 三轨共存，共享 Intent/Planner，表现层可插拔 |
 | 架构 | 可插拔 **Presentation** + 统一 **BehaviorPlanner / Intent**（与 Spine 规格同构） |
 
 ## 非目标（首版）
@@ -206,6 +206,6 @@ interface PetPresentation {
 
 ## 分支与文档
 
-- Git 分支：`feat/model3d-presentation`（基于 main）
+- Git 分支：合入 `main`
 - 本设计路径：`docs/superpowers/specs/2026-11-16-model3d-presentation-design.md`（目录若被 ignore，以工作区文件为准）
 - 对外说明（实现期同步）：`docs/model3d-presentation.md`（素材署名、如何启用演示宠）
