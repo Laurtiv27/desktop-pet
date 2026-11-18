@@ -106,14 +106,24 @@ const scriptGlobals = {
   OPEN_SHORTCUT_HINT: 'readonly',
   isOpenShortcut: 'readonly',
   playClickSound: 'readonly',
+  // sprite/presentation-spine-stub.js、sprite/presentation.js
+  createSpineStubPresentation: 'readonly',
+  createSpineWebglPresentation: 'readonly',
+  createPresentation: 'readonly',
+  spine: 'readonly',
+  // sprite/behavior-runner.js
+  createBehaviorRunner: 'readonly',
   // events.js
   startLoops: 'readonly',
 };
 
 export default defineConfig([
   {
-    // 第三方原样或打包产物，不是本仓库手写脚本。
-    ignores: ['runtime/electron-helper/posture/vendor/**', 'runtime/electron-helper/vendor/**'],
+    // 第三方原样或打包产物（Three / Spine / MediaPipe 等），不是本仓库手写脚本。
+    ignores: [
+      'runtime/electron-helper/posture/vendor/**',
+      'runtime/electron-helper/vendor/**',
+    ],
   },
   {
     files: ['runtime/electron-helper/**/*.js'],

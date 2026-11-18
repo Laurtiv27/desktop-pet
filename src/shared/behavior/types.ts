@@ -1,6 +1,7 @@
 export type PresentationKind = 'video' | 'spine' | 'model3d';
 export type ClipSlot = 'idle' | 'walk' | 'turn' | 'sit' | 'wave' | 'happy' | 'drag';
 export type IntentSource = 'roam' | 'menu' | 'ai' | 'posture' | 'user';
+
 export type PetIntent = {
   goal?: { xRatio: number; yRatio: number };
   facing?: 'left' | 'right' | 'keep';
@@ -13,6 +14,7 @@ export type PetIntent = {
   priority?: number;
   source: IntentSource;
 };
+
 export type PetPlanStep = {
   clip: string;
   loop: boolean;
@@ -20,12 +22,14 @@ export type PetPlanStep = {
   durationMs?: number;
   goal?: { xRatio: number; yRatio: number };
 };
+
 export type PetPlan = {
   steps: PetPlanStep[];
   facing: 'left' | 'right' | 'keep';
   priority: number;
   source: IntentSource;
 };
+
 export const INTENT_PRIORITY: Record<IntentSource, number> = {
   user: 100,
   menu: 100,

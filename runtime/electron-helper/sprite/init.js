@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 构建期初始化：DOM 骨架、事件绑定、各面板与驱动的初值、跨窗碰撞订阅。
  *
  * 只由 constructor 调用一次；运行期的行为在 sprite-playback / sprite-motion / sprite-input。
@@ -10,7 +10,7 @@
 Object.assign(PetSprite.prototype, {
   initPlayback(pet) {
     // 动画池与权重由拍平层按条目注入（renderer 的 S.flattenConfigPets）。
-    // video 缺 animations 仍报错（boot 红条 + 5s 重试）；model3d 缺 animations 用最小 idle 桩，避免菜单/随机链炸掉。
+    // video 缺 animations 仍报错；spine/model3d 缺 animations 用最小 idle 桩，避免菜单/随机链炸掉。
     const setup =
       typeof S.resolvePetPlaybackSetup === 'function'
         ? S.resolvePetPlaybackSetup(pet)
@@ -25,6 +25,10 @@ Object.assign(PetSprite.prototype, {
     if (this.playbackKind === 'model3d' && pet.model3d && typeof S.parseModel3dMeta === 'function') {
       const parsed = S.parseModel3dMeta(pet.model3d.meta);
       if (parsed) pet.model3d.meta = parsed;
+    }
+    if (this.playbackKind === 'spine' && pet.spine && typeof S.parseSpineMeta === 'function') {
+      const parsed = S.parseSpineMeta(pet.spine.meta);
+      if (parsed) pet.spine.meta = parsed;
     }
     this.model3dMeta = (pet.model3d && pet.model3d.meta) || null;
     // 素材 URL 与 thumb 同前缀：/dsh-pet-7340/model3d/<assetId>/。renderer 可预先写上 pet.model3dAssetBase。
@@ -178,6 +182,11 @@ Object.assign(PetSprite.prototype, {
         assetBase: this.model3dAssetBase,
         sprite: this,
       });
+      if (this.presentation) this.presentation.mount(stage);
+    } else if (this.playbackKind === 'spine') {
+      this.videoA = null;
+      this.videoB = null;
+      this.presentation = createPresentation('spine', { pet: this.pet });
       if (this.presentation) this.presentation.mount(stage);
     } else {
       this.videoA = document.createElement('video');

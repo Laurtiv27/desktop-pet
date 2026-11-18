@@ -12,3 +12,8 @@ docs/superpowers/
 *.local
 .idea/
 .vscode/
+
+.merge-tmp/
+
+assets/model3d/sas-red/character.glb
+assets/model3d/sas-red/character.glb.bak

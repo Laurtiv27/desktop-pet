@@ -5,8 +5,16 @@
  * 必须始终成立：只填缺省、不覆盖显式值；未知字段不透传。
  * @module dsh-pet/src/host/config/merge
  */
-import { CORNER_SET, GLOBAL_DEFAULT_KEYS, isValidPetId, PET_DISPLAY_SET, warnOnce } from './constants.ts';
+import {
+  CORNER_SET,
+  GLOBAL_DEFAULT_KEYS,
+  isValidPetId,
+  PET_DISPLAY_SET,
+  PET_PRESENTATION_SET,
+  warnOnce,
+} from './constants.ts';
 import { isValidSizePercent, SIZE_PERCENT_DEFAULT, SIZE_PERCENT_MIN } from '../../shared/pet-size.ts';
+import { parsePetSpine, type PetSpine } from './spine-field.ts';
 import { topFieldValid } from './validate.ts';
 
 /**
@@ -206,7 +214,33 @@ function mergePet(
     // 「跟随条目」固化成显式覆盖——之后用户改条目人设，这些实例不再跟着变。
     ...petPersonaField(p.whisperPrompt, label, id),
     ...petPresentationFields(p, label, id),
+    // 没写 spine 时留下基座上的那份（设置页补丁只改 presentation 时不能把骨骼素材抹掉）。
+    ...petSpineField(p.spine, base.spine, label, id),
   };
+}
+
+/**
+ * 实例级 spine：合法 `{ root, meta? }` 原样带出（meta 经 parseSpineMeta）。
+ * 没写 → 沿用基座；基座也没有就不落键。非法 → 告警并回落基座。
+ */
+function petSpineField(own: unknown, baseSpine: unknown, label: string, id: string): { spine?: PetSpine } {
+  if (own === undefined || own === null) {
+    const kept = parsePetSpine(baseSpine);
+    return kept ? { spine: kept } : {};
+  }
+  const parsed = parsePetSpine(own);
+  if (parsed) return { spine: parsed };
+  warnOnce(`${label}:spine:${id}`, `宠物「${id}」的 spine 非法，已忽略`);
+  const kept = parsePetSpine(baseSpine);
+  return kept ? { spine: kept } : {};
+}
+
+/** 实例级 presentation：只放行 video / spine；没写不落键（播放端按 video）；非法 → 告警并忽略。 */
+function petPresentationField(own: unknown, label: string, id: string): { presentation?: string } {
+  if (own === undefined || own === null) return {};
+  if (typeof own === 'string' && PET_PRESENTATION_SET.has(own)) return { presentation: own };
+  warnOnce(`${label}:presentation:${id}`, `宠物「${id}」的 presentation 非法，已忽略（按视频序列处理）`);
+  return {};
 }
 
 /**

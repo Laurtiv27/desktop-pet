@@ -33,6 +33,46 @@ function scheduleReboot() {
  */
 let bootFailures = 0;
 
+/** 调试/本地试跑：解析 JSON 或接收对象后 submitIntent(source=ai)，失败只 warn */
+function installPetIntentDebugHook(sprite) {
+  if (!sprite || typeof sprite.submitIntent !== 'function') return;
+  const submitPetIntent = (raw) => {
+    try {
+      let intent = null;
+      if (typeof raw === 'string') {
+        if (typeof S.parseIntentJson === 'function') {
+          intent = S.parseIntentJson(raw);
+        }
+        if (!intent) {
+          console.warn('[dsh-pet] submitPetIntent: 无法解析 Intent JSON');
+          return false;
+        }
+      } else if (raw && typeof raw === 'object') {
+        if (!Array.isArray(raw.sequence) || raw.sequence.length === 0) {
+          console.warn('[dsh-pet] submitPetIntent: sequence 无效');
+          return false;
+        }
+        intent = raw;
+      } else {
+        console.warn('[dsh-pet] submitPetIntent: 参数无效');
+        return false;
+      }
+      return Boolean(sprite.submitIntent({ ...intent, source: 'ai' }));
+    } catch (e) {
+      console.warn('[dsh-pet] submitPetIntent:', e && e.message ? e.message : e);
+      return false;
+    }
+  };
+  window.__dshPetDebug.submitPetIntent = submitPetIntent;
+  if (window.petBridge && typeof window.petBridge === 'object') {
+    try {
+      window.petBridge.submitPetIntent = submitPetIntent;
+    } catch (_e) {
+      /* preload 桥不可变时仅走 __dshPetDebug */
+    }
+  }
+}
+
 async function loadConfig() {
   // 唯一配置入口：宿主 /config 的成品聚合（已合并并保证绝对正确），一步拉取 → 拍平，零校验零兜底
   const res = await fetch(BASE + '/config', { cache: 'no-store' });
@@ -96,6 +136,7 @@ async function boot() {
       pet.model3dAssetBase = BASE + '/model3d/' + encodeURIComponent(String(assetId)) + '/';
     }
     sprites = [new PetSprite(pet)];
+    installPetIntentDebugHook(sprites[0]);
     window.__dshPetDebug.configOk = true;
     window.__dshPetDebug.spriteCount = sprites.length;
     for (const s of sprites) s.playIdle();

@@ -37,6 +37,7 @@ function addPet() {
     name: '新宠物',
     size: 462,
     display: 'none',
+    presentation: 'video',
     balanceEnabled: true,
     whisperEnabled: true,
     workStatusEnabled: true,
@@ -101,6 +102,10 @@ function petCard() {
       }, { hint: '留空表示按 px 显示。' }),
     ]),
     selectField('pet-display', '显示位置', pet.display, DISPLAYS.map((value) => ({ value: value, label: displayLabel(value) })), (value) => { pet.display = value; }, 'web=仅浏览器 / desktop=仅桌面 / both=两者都显示 / none=都不显示'),
+    selectField('pet-presentation', '表现', pickPresentation(pet.presentation), [
+      { value: 'video', label: '视频' },
+      { value: 'spine', label: '骨骼' },
+    ], (value) => { pet.presentation = value; }, '视频序列或 Spine 骨骼。缺省按视频；骨骼素材放在 assets/spine/<宠物id>/。'),
     make('div', { class: 'grid2' }, [
       selectField('pet-corner', '停靠角落', pet.position.corner, CORNERS.map((value) => ({ value: value, label: cornerLabel(value) })), (value) => { pet.position.corner = value; }),
       numberField('pet-margin-x', '水平边距（px）', pet.position.marginX, (value) => { pet.position.marginX = value; }, { step: 1 }),

@@ -84,6 +84,29 @@ describe('flattenConfigPets —— 成品 → 渲染列表的唯一填充点', (
     assert.deepEqual(pet.animations, ['a.webm']);
   });
 
+  test('实例级 presentation / spine：拍平原样保留（spread 不经条目覆盖）', () => {
+    const spineMeta = {
+      clips: { idle: 'Idle', walk: 'Walk' },
+      walkSpeedPx: 90,
+      defaultSkin: 'skin-a',
+    };
+    const merged = {
+      main: {
+        pets: [
+          { id: 'spine-a', presentation: 'spine', spine: { root: 'heroes/cat', meta: spineMeta } },
+          { id: 'video-b', presentation: 'video' },
+          { id: 'legacy-c' },
+        ],
+      },
+    };
+    const [a, b, c] = flattenConfigPets(merged as Record<string, Record<string, unknown>>);
+    assert.equal(a.presentation, 'spine');
+    assert.deepEqual(a.spine, { root: 'heroes/cat', meta: spineMeta });
+    assert.equal(b.presentation, 'video');
+    assert.equal('presentation' in c, false);
+    assert.equal('spine' in c, false);
+  });
+
   test('实例级人设 whisperPrompt：原样带出，不参与条目级覆盖（回落由 host 消费端做）', () => {
     const merged = {
       main: {

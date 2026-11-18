@@ -113,11 +113,22 @@ class PetSprite {
       this.chatMount = null;
     }
     this.closeMenu();
-    if (typeof this.stopRoam === 'function') this.stopRoam();
-    if (typeof this.cancelPlan === 'function') this.cancelPlan('dispose');
+    if (this.behaviorRunner) {
+      this.behaviorRunner.stopRoam();
+      this.behaviorRunner.cancelPlan('dispose');
+      this.behaviorRunner = null;
+    } else {
+      if (typeof this.stopRoam === 'function') this.stopRoam();
+      if (typeof this.cancelPlan === 'function') this.cancelPlan('dispose');
+    }
     this.stopThrow();
     this.stopDragFollow();
     this.stopSquash();
+    if (this._spineClipTimer != null) {
+      window.clearTimeout(this._spineClipTimer);
+      this._spineClipTimer = null;
+    }
+    this._spineExternalClip = false;
     this.stopMove();
     if (this.presentation && typeof this.presentation.dispose === 'function') {
       this.presentation.dispose();
@@ -134,7 +145,6 @@ class PetSprite {
     const value = next === 'right' ? 'right' : 'left';
     if (this._facing === value) return;
     this._facing = value;
-    // 三维朝向不靠 video 的 scaleX：表现层在的话立刻翻模型。初始化写的是 _facing，不会走到这里。
     if (this.presentation && typeof this.presentation.setFacing === 'function') {
       this.presentation.setFacing(value);
     }
@@ -237,6 +247,7 @@ class PetSprite {
     this.space = null;
     if (this.dragState.active || this.throwRef !== null) return;
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     if (!this.pos) {
       // 还没摆过位（position() 首次调用前）：没有旧位置可守恒，直接按新几何定位
       this.position();

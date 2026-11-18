@@ -63,7 +63,6 @@ describe('validateIntent', () => {
       }
     }
   });
-
   test('空 sequence 拒绝', () => {
     const r = validateIntent(baseIntent({ sequence: [] }), allowed);
     assert.equal(r.ok, false);

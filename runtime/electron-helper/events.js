@@ -32,10 +32,17 @@ PetSprite.prototype.onWorkTick = function onWorkTick(snapshot, tick) {
     // 宠物会卡在那段工作动画上。只改当前段：它结束后走 handleEnded → playIdle。
     // 睡觉时前台那段是睡姿循环：改掉它的 loop/onended 会既打断睡姿又把随机链拽回来，跳过。
     if (!this.sleeping && S.poolIncludes(this.animations.events?.workStatus ?? [], this.anim)) {
-      const frontEl = this.front === 0 ? this.videoA : this.videoB;
-      if (frontEl) {
-        frontEl.loop = false;
-        frontEl.onended = () => this.handleEnded();
+      // 骨骼循环段走 switchTo(name, false)，不排 handleEnded；videoA/B 为 null，
+      // 不清 _spineExternalClip 的话 submitRoam 会一直 no-op。
+      if (this.presentationKind === 'spine') {
+        this._spineExternalClip = false;
+        this.playIdle();
+      } else {
+        const frontEl = this.front === 0 ? this.videoA : this.videoB;
+        if (frontEl) {
+          frontEl.loop = false;
+          frontEl.onended = () => this.handleEnded();
+        }
       }
     }
     // 空闲：收起常驻气泡
@@ -72,6 +79,7 @@ PetSprite.prototype.onWorkTick = function onWorkTick(snapshot, tick) {
       name,
   );
   this.stopMove();
+  this.cancelPlan('user');
   // 气泡文本：任务详情优先，否则从条目级 workStatusTexts[档位] 随机抽一句；整档缺失则只播动画。
   const textGroup = Array.isArray(this.pet.workStatusTexts) ? this.pet.workStatusTexts[idx] : undefined;
   const configuredText =
@@ -211,6 +219,7 @@ PetSprite.prototype.showWhisper = function showWhisper(text, image, url, duratio
   // 睡觉：气泡照弹（拒绝台词就是这么来的），动画不换——自动来源不该打断睡姿（睡姿循环归睡觉状态机）。
   if (name !== null && !this.sleeping) {
     this.stopMove();
+    this.cancelPlan('user');
     this.playOnce(name);
   }
   if (duration === 0) return;
@@ -259,6 +268,7 @@ PetSprite.prototype.showBalanceNow = function showBalanceNow(state, manual) {
   }
   const name = S.pickSlot(slot, this.anim); // 数组槽位档内随机抽 1，且避开当前正播动画（避免连续重复，与浏览器一致）
   this.stopMove();
+  this.cancelPlan('user');
   this.playOnce(name);
 };
 

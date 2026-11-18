@@ -82,11 +82,22 @@ const required = [
   'runtime/electron-helper/sprite/bubble.js', // 桌面模式气泡与提示渲染（sprite.js 的原型扩展，须在其后加载）
   'runtime/electron-helper/sprite/menu.js', // 桌面模式右键菜单（sprite.js 的原型扩展，须在其后加载）
   'runtime/electron-helper/sprite/playback.js', // 桌面模式播放状态机（同上）
-  'runtime/electron-helper/sprite/presentation-model3d.js', // 三维透明舞台（须在 three vendor 之后加载）
-  'runtime/electron-helper/sprite/presentation.js', // 表现层工厂（须在 presentation-model3d.js 之后加载）
   'runtime/electron-helper/vendor/three-gltf.iife.js', // Three.js + GLTFLoader（window.THREE / window.GLTFLoader）
+  'runtime/electron-helper/sprite/presentation-model3d.js', // 三维透明舞台（须在 three vendor 之后加载）
+  'runtime/electron-helper/vendor/spine-webgl.iife.js', // Spine runtime IIFE（本地验证；发行授权另议）
+  'runtime/electron-helper/vendor/spine-webgl-3.8.js', // Spine 3.8 runtime（旧版导出立绘等）
+  'runtime/electron-helper/sprite/presentation-spine-stub.js', // 骨骼表现层 Canvas 占位（须在 presentation.js 前加载）
+  'runtime/electron-helper/sprite/presentation-spine.js', // 真·Spine WebGL 表现层（依赖 vendor/spine-webgl.iife.js）
+  'runtime/electron-helper/sprite/presentation-spine-38.js', // Spine 3.8 表现层（依赖 vendor/spine-webgl-3.8.js）
+  'runtime/electron-helper/sprite/presentation.js', // 表现层工厂（model3d + spine 实现之后）
+  'runtime/electron-helper/spine-demo/skeleton.skel', // 焰灵夜叉王立绘（3.8；本地验证）
+  'runtime/electron-helper/spine-demo/skeleton.atlas',
+  'runtime/electron-helper/spine-demo/skeleton.png',
+  'runtime/electron-helper/spine-demo/spineboy-pro.skel', // 备用 4.2 示例角色（勿当正式发行素材）
+  'runtime/electron-helper/spine-demo/spineboy-pma.atlas',
+  'runtime/electron-helper/spine-demo/spineboy-pma.png',
   'runtime/electron-helper/sprite/motion.js', // 桌面模式运动驱动（同上）
-  'runtime/electron-helper/sprite/behavior-runner.js', // 三维 Intent 执行（须在 motion 之后；video 宠物调用为空操作）
+  'runtime/electron-helper/sprite/behavior-runner.js', // model3d/spine Intent 执行（须在 motion 之后）
   'runtime/electron-helper/sprite/input.js', // 桌面模式指针与命中（同上）
   'runtime/electron-helper/sprite/init.js', // 桌面模式构建期初始化（同上）
   'runtime/electron-helper/sprite/window-fit.js', // 桌面模式窗口落位与钳制补偿（sprite.js 的原型扩展，须在其后加载）

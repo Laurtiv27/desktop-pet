@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 播放状态机：换源、前后台交替、收尾、冻结与占用锁、空闲随机链。
  *
  * PetSprite 由 sprite.js 定义，本文件只往原型上挂方法，必须在其后加载。
@@ -6,6 +6,9 @@
  * @module dsh-pet/runtime/electron-helper/sprite-playback
  */
 'use strict';
+
+/** 骨骼 stub 没有 video.ended。一次性片段用此时长交给 handleEnded（睡觉 start→loop 也走这里）。 */
+const SPINE_CLIP_END_MS = 1500;
 
 Object.assign(PetSprite.prototype, {
   switchTo(next, nextOnce, playbackId, url) {
@@ -16,6 +19,10 @@ Object.assign(PetSprite.prototype, {
     this.once = !nextOnce;
     if (this.playbackKind === 'model3d') {
       this.playModel3dPresentation(next, nextOnce, playbackId);
+      return;
+    }
+    if (this.playbackKind === 'spine') {
+      this.playSpinePresentation(next, nextOnce, playbackId);
       return;
     }
     const pending = this.pending;
@@ -136,6 +143,60 @@ Object.assign(PetSprite.prototype, {
    * 三维换 clip：不走 videoA/B。idle 槽强制 loop。
    * 非待机且只播一次时，片段结束经 onEnded 进 handleEnded，与视频 ended 同一条链。
    */
+  /** 当前名字是否属于待机池（骨骼待机必须循环，不能 playOnce 播完冻末帧）。 */
+  isSpineIdleClip(name) {
+    const idle = this.animations && this.animations.idle;
+    if (!Array.isArray(idle) || !name) return false;
+    if (idle.includes(name)) return true;
+    const clips = this.pet.spine && this.pet.spine.meta && this.pet.spine.meta.clips;
+    if (clips && typeof clips.idle === 'string' && clips.idle === name) return true;
+    return name === 'idle';
+  },
+
+  /**
+   * 骨骼表现层换 clip：不走 videoA/B 双缓冲。mappedClip 经 meta.clips 槽位映射。
+   */
+  playSpinePresentation(next, nextOnce, playbackId) {
+    const idleClip = this.isSpineIdleClip(next);
+    this._spineExternalClip = !idleClip;
+    if (this._spineClipTimer != null) {
+      window.clearTimeout(this._spineClipTimer);
+      this._spineClipTimer = null;
+    }
+    const token = (this._spineClipToken = (this._spineClipToken || 0) + 1);
+    const clips = this.pet.spine && this.pet.spine.meta && this.pet.spine.meta.clips;
+    const mapped = S.mapPresentationClip(next, clips);
+    const loop = idleClip ? true : !nextOnce;
+    if (this.presentation) {
+      this.presentation.play(mapped, { loop });
+      this.presentation.setFacing(this.facing === 'right' ? 'right' : 'left');
+    }
+    if (this.playback && this.playback !== playbackId) {
+      this.reportPlayback(this.playback, 'cancelled', 'superseded');
+    }
+    this.pending = null;
+    this.playback = playbackId || null;
+    if (playbackId) this.reportPlayback(playbackId, 'playing');
+    if (this.pendingSquash) {
+      this.pendingSquash = false;
+      const el = this.front === 0 ? this.videoA : this.videoB;
+      if (el) this.startSquash(el);
+    }
+    this.pendingMove = null;
+    if (loop) return;
+    const durSec =
+      this.presentation && Number.isFinite(this.presentation.clipDurationSec)
+        ? this.presentation.clipDurationSec
+        : 0;
+    const waitMs = Math.max(SPINE_CLIP_END_MS, Math.round((durSec || 1.5) * 1000));
+    this._spineClipTimer = window.setTimeout(() => {
+      this._spineClipTimer = null;
+      if (token !== this._spineClipToken) return;
+      if (this.anim !== next) return;
+      this.handleEnded();
+    }, waitMs);
+  },
+
   playModel3dPresentation(next, nextOnce, playbackId) {
     const isIdle = this.isModel3dIdleClip(next);
     const loop = isIdle ? true : !nextOnce;
@@ -163,6 +224,7 @@ Object.assign(PetSprite.prototype, {
   // 地址本身同时是 pending 的防重键与日志标识。
   playUrlOnce(url, playbackId) {
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     this.playOnce(url, playbackId, url);
   },
 
@@ -214,7 +276,7 @@ Object.assign(PetSprite.prototype, {
     if (this.resumeSleepAnim()) return;
     if (this.resumeWorkStatusAnim()) return;
     // 三维没有视频续播：解冻直接回循环待机，不 playOnce 干等 ended。
-    if (this.playbackKind === 'model3d') {
+    if (this.playbackKind === 'model3d' || this.playbackKind === 'spine') {
       this.playIdle();
       return;
     }
@@ -321,6 +383,16 @@ Object.assign(PetSprite.prototype, {
       // 第二参 false = 循环。idle 在 playModel3dPresentation 里再强制 loop:true。
       this.switchTo(idleName, false);
       // startRoam：autoBehavior 开→窗口漫游；关→原地换剪辑（含 walk），不位移。
+      if (typeof this.startRoam === 'function') this.startRoam();
+      return;
+    }
+    if (this.playbackKind === 'spine') {
+      this._spineExternalClip = false;
+      if (typeof this.cancelPlan === 'function') this.cancelPlan('idle');
+      const idleName =
+        (this.animations.idle && this.animations.idle.length && S.pick(this.animations.idle, this.anim)) ||
+        'idle';
+      this.switchTo(idleName, false);
       if (typeof this.startRoam === 'function') this.startRoam();
       return;
     }
@@ -472,7 +544,7 @@ Object.assign(PetSprite.prototype, {
   // preferredName 传入时固定用该动画（菜单点播移动动画），否则与随机链一致随机选。
   tryMove(preferredName, playbackId) {
     // 三维位移不跟视频时长。返回 false 让菜单点播退化成纯播放，避免 pendingMove 挂死。
-    if (this.playbackKind === 'model3d') return false;
+    if (this.playbackKind === 'model3d' || this.playbackKind === 'spine') return false;
     if (this.moveRef !== null || this.pendingMove || this.throwRef !== null) return true;
     const moves = this.animations.moves;
     const actions = moves.actions;

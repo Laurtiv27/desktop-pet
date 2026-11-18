@@ -237,6 +237,15 @@ function createWindows({
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     // 被遮挡的窗口默认暂停渲染，表现成「消失」；关掉后台节流让它持续渲染
     win.webContents.setBackgroundThrottling(false);
+    // 转发渲染端 console，方便排查 Spine 加载失败等（级别：0 log / 1 warn / 2 error）
+    win.webContents.on('console-message', (_event, level, message) => {
+      const text = String(message || '');
+      if (!text.includes('[dsh-pet]')) return;
+      const tag = level >= 2 ? 'error' : level === 1 ? 'warn' : 'info';
+      console[tag === 'error' ? 'error' : tag === 'warn' ? 'warn' : 'log'](
+        `[renderer:${pet.id}] ${text}`,
+      );
+    });
     // 屏蔽 Electron 默认右键菜单：右键菜单由渲染端统一自绘，绝无双菜单
     win.webContents.on('context-menu', (event) => event.preventDefault());
     // 页面级缩放与渲染端 CONFIG.scale 同源；show:false 的窗口 zoomFactor 不生效，须加载后设置

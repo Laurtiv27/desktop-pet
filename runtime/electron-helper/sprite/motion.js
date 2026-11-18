@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 运动驱动：拖拽跟随、抛掷、位置指令与 Q 弹挤压的帧循环。
  *
  * PetSprite 由 sprite.js 定义，本文件只往原型上挂方法，必须在其后加载。
@@ -40,12 +40,45 @@ Object.assign(PetSprite.prototype, {
   },
 
   /**
-   * 三维走路：按恒定像素速度把宠物中心挪到 goal 的归一化坐标。
-   * goal 与 customPos 同口径（xRatio/yRatio，相对 VIEW）。webm 仍走 startMoveDrive。
-   * 模型在动的时候循环 walk；没有 onArrive 时到达后回 idle。
+   * 恒定像素速度位移：model3d 用归一化 goal（xRatio/yRatio）；spine 用像素 goal（x/y）。
+   * webm 仍走 startMoveDrive。
    */
   startSpeedMoveDrive({ goal, speedPx, onArrive } = {}) {
-    if (!goal || !Number.isFinite(goal.xRatio) || !Number.isFinite(goal.yRatio)) return;
+    if (!goal) return;
+    if (this.playbackKind === 'spine') {
+      if (!Number.isFinite(goal.x) || !Number.isFinite(goal.y)) return;
+      if (!Number.isFinite(speedPx) || speedPx <= 0) return;
+      this.stopMove();
+      const token = ++this.moveToken;
+      let last = performance.now();
+      const step = () => {
+        if (this.moveToken !== token) return;
+        const now = performance.now();
+        const dt = Math.min((now - last) / 1000, 1 / 30);
+        last = now;
+        const x = this.pos.x;
+        const y = this.pos.y;
+        const dx = goal.x - x;
+        const dy = goal.y - y;
+        const dist = Math.hypot(dx, dy);
+        const stepLen = speedPx * dt;
+        if (dist <= stepLen) {
+          this.sendBounds(goal.x, goal.y);
+          this.moveRef = null;
+          this.customPos = {
+            rx: (this.pos.x + this.halfW) / VIEW.w,
+            ry: (this.pos.y + this.halfH) / VIEW.h,
+          };
+          if (typeof onArrive === 'function') onArrive();
+          return;
+        }
+        this.sendBounds(x + (dx / dist) * stepLen, y + (dy / dist) * stepLen);
+        this.moveRef = requestAnimationFrame(step);
+      };
+      this.moveRef = requestAnimationFrame(step);
+      return;
+    }
+    if (!Number.isFinite(goal.xRatio) || !Number.isFinite(goal.yRatio)) return;
     this.stopMove();
     const token = ++this.moveToken;
     const W = VIEW.w;
@@ -176,6 +209,7 @@ Object.assign(PetSprite.prototype, {
   startThrow(px, py, vx, vy) {
     this.stopDragFollow();
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     // 边界 = 工作区并集：空洞是墙，屏缝不是墙（跨屏弹跳照旧）。confineToScreen 开启时改为锁定
     // 松手这一刻所在的那块屏，飞行途中不重取；relayout 改了屏数时由 throwStepRegion 退回不锁定。
     const lockScreen = this.confineToScreen ? S.screenOfBox(this.throwSpaceOf(), px, py) : -1;
@@ -265,6 +299,7 @@ Object.assign(PetSprite.prototype, {
     if (this.dragState.active) return; // 用户交互优先
     this.stopThrow(); // 先显式接管：停掉飞行与走路（stopMove 顺带停掉上一次的位置跟随）
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     // 归一化空间是外接矩形，不规则布局里含大片空洞；position() 的 customPos 分支零夹取，
     // 不夹的话落进空洞的坐标会把宠物放进看不见的地方。鼠标拖拽到不了那里不是因为代码在拦，
     // 而是光标物理上出不去屏幕——位置接口必须自己补这道守卫：把身体中心夹到 AREAS 并集。
@@ -341,6 +376,7 @@ Object.assign(PetSprite.prototype, {
   /** 被撞回调（跨窗碰撞 broker 转发）：停当前动作，从落点以新初速抛出去（全复用现有物理） */
   onDeskHit(vx, vy) {
     this.stopMove();
+    if (typeof this.cancelPlan === 'function') this.cancelPlan('user');
     this.stopDragFollow();
     this.stopThrow();
     this.startThrow(this.pos.x, this.pos.y, vx, vy);

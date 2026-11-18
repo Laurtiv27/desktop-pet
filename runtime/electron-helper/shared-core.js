@@ -17,7 +17,7 @@ const INTENT_PRIORITY = {
 
 //#endregion
 //#region src/shared/behavior/model3d-meta.ts
-const DEFAULT_WALK_SPEED_PX = 120;
+const DEFAULT_WALK_SPEED_PX$1 = 120;
 function parseModel3dMeta(raw) {
 	if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
 	const record = raw;
@@ -25,7 +25,7 @@ function parseModel3dMeta(raw) {
 	const clips = {};
 	for (const [k, v] of Object.entries(record.clips)) if (typeof v === "string" && v) clips[k] = v;
 	if (Object.keys(clips).length === 0) return null;
-	let walkSpeedPx = DEFAULT_WALK_SPEED_PX;
+	let walkSpeedPx = DEFAULT_WALK_SPEED_PX$1;
 	if (typeof record.walkSpeedPx === "number" && Number.isFinite(record.walkSpeedPx) && record.walkSpeedPx > 0) walkSpeedPx = record.walkSpeedPx;
 	let scale = 1;
 	if (typeof record.scale === "number" && Number.isFinite(record.scale) && record.scale > 0) scale = record.scale;
@@ -75,11 +75,50 @@ function parseModel3dMeta(raw) {
 }
 
 //#endregion
+//#region src/shared/behavior/spine-meta.ts
+const DEFAULT_WALK_SPEED_PX = 120;
+function parseSpineMeta(raw) {
+	if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+	const record = raw;
+	if (typeof record.clips !== "object" || record.clips === null || Array.isArray(record.clips)) return null;
+	const clipsIn = record.clips;
+	const clips = {};
+	let hasStringClip = false;
+	for (const [key, value] of Object.entries(clipsIn)) {
+		if (typeof value !== "string" || !value) continue;
+		hasStringClip = true;
+		clips[key] = value;
+	}
+	if (!hasStringClip) return null;
+	let defaultSkin = "default";
+	if (typeof record.defaultSkin === "string" && record.defaultSkin.length > 0) defaultSkin = record.defaultSkin;
+	let walkSpeedPx = DEFAULT_WALK_SPEED_PX;
+	if (typeof record.walkSpeedPx === "number" && Number.isFinite(record.walkSpeedPx) && record.walkSpeedPx > 0) walkSpeedPx = record.walkSpeedPx;
+	const out = {
+		clips,
+		walkSpeedPx,
+		defaultSkin
+	};
+	if (record.autoBehavior === false) out.autoBehavior = false;
+	else if (record.autoBehavior === true) out.autoBehavior = true;
+	if (typeof record.skeleton === "string" && record.skeleton.trim()) out.skeleton = record.skeleton.trim();
+	if (typeof record.atlas === "string" && record.atlas.trim()) out.atlas = record.atlas.trim();
+	if (typeof record.runtime === "string" && record.runtime.trim()) out.runtime = record.runtime.trim();
+	return out;
+}
+
+//#endregion
 //#region src/shared/behavior/pet-presentation.ts
 function normalizePresentation(raw) {
 	if (raw === "spine") return "spine";
 	if (raw === "model3d") return "model3d";
 	return "video";
+}
+function resolvePetPresentation(pet) {
+	return normalizePresentation(pet.presentation);
+}
+function choosePlaybackBackend(presentation) {
+	return normalizePresentation(presentation);
 }
 const MODEL3D_CLICK_SLOTS = [
 	"wave",
@@ -111,13 +150,32 @@ function createModel3dAnimationStub(clips) {
 		events: {}
 	};
 }
+function createSpineAnimationStub(clips) {
+	let idle = "idle";
+	if (clips && typeof clips === "object" && !Array.isArray(clips)) {
+		const idleVal = clips.idle;
+		if (typeof idleVal === "string" && idleVal.length > 0) idle = idleVal;
+	}
+	return {
+		idle: [idle],
+		turn: [],
+		drag: [],
+		clicks: [],
+		moves: {
+			default: {},
+			actions: []
+		},
+		categories: [],
+		events: {}
+	};
+}
 function mapPresentationClip(clip, clips) {
 	if (!clips) return clip;
 	const mapped = clips[clip];
 	return typeof mapped === "string" && mapped.length > 0 ? mapped : clip;
 }
 function resolvePetPlaybackSetup(pet) {
-	const kind = normalizePresentation(pet.presentation);
+	const kind = choosePlaybackBackend(pet.presentation);
 	if (pet.animations) return {
 		kind,
 		animations: pet.animations,
@@ -126,6 +184,11 @@ function resolvePetPlaybackSetup(pet) {
 	if (kind === "model3d") return {
 		kind,
 		animations: createModel3dAnimationStub(pet.model3d?.meta?.clips),
+		usedStub: true
+	};
+	if (kind === "spine") return {
+		kind,
+		animations: createSpineAnimationStub(pet.spine?.meta?.clips),
 		usedStub: true
 	};
 	throw new Error("宠物缺少 animations 段：" + String(pet.id ?? ""));
@@ -178,7 +241,7 @@ const CLIP_SLOTS = [
 	"happy",
 	"drag"
 ];
-const DEFAULT_ARRIVE_THRESHOLD = .01;
+const DEFAULT_ARRIVE_THRESHOLD$1 = .01;
 function isClipSlotKey(clip) {
 	return CLIP_SLOTS.includes(clip);
 }
@@ -212,7 +275,7 @@ function planBehavior(input) {
 	const validated = validateIntent(input.intent, input.allowedClips);
 	if (!validated.ok) return validated;
 	const intent = validated.intent;
-	const threshold = input.arriveThreshold ?? DEFAULT_ARRIVE_THRESHOLD;
+	const threshold = input.arriveThreshold ?? DEFAULT_ARRIVE_THRESHOLD$1;
 	const steps = [];
 	const goal = intent.goal;
 	if (goal !== void 0) {
@@ -241,6 +304,115 @@ function planBehavior(input) {
 		ok: true,
 		plan
 	};
+}
+
+//#endregion
+//#region src/shared/behavior/priority.ts
+function resolveIntentPriority(intent) {
+	return intent.priority ?? INTENT_PRIORITY[intent.source];
+}
+function canInterrupt(currentPriority, next) {
+	return resolveIntentPriority(next) > currentPriority;
+}
+
+//#endregion
+//#region src/shared/behavior/arrive.ts
+const DEFAULT_ARRIVE_THRESHOLD = .01;
+function ratioDistance(a, b) {
+	return Math.hypot(a.xRatio - b.xRatio, a.yRatio - b.yRatio);
+}
+function hasArrived(current, goal, threshold = DEFAULT_ARRIVE_THRESHOLD) {
+	return ratioDistance(current, goal) <= threshold;
+}
+
+//#endregion
+//#region src/shared/behavior/parse-intent-json.ts
+function extractFirstJsonObject(text) {
+	const start = text.indexOf("{");
+	if (start < 0) return null;
+	let depth = 0;
+	for (let i = start; i < text.length; i++) {
+		const ch = text.charAt(i);
+		if (ch === "{") depth += 1;
+		else if (ch === "}") {
+			depth -= 1;
+			if (depth === 0) return text.slice(start, i + 1);
+		}
+	}
+	return null;
+}
+function isRecord(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function parseSequence(raw) {
+	if (!Array.isArray(raw) || raw.length === 0) return null;
+	const out = [];
+	for (const item of raw) {
+		if (!isRecord(item)) return null;
+		const clip = item.clip;
+		if (typeof clip !== "string" || !clip.trim()) return null;
+		const step = { clip: clip.trim() };
+		if (item.loop !== void 0) {
+			if (typeof item.loop !== "boolean") return null;
+			step.loop = item.loop;
+		}
+		if (item.until !== void 0) {
+			const until = item.until;
+			if (until !== "arrive" && until !== "clip-end" && until !== "duration") return null;
+			step.until = until;
+		}
+		if (item.durationMs !== void 0) {
+			if (typeof item.durationMs !== "number" || !Number.isFinite(item.durationMs)) return null;
+			step.durationMs = item.durationMs;
+		}
+		out.push(step);
+	}
+	return out;
+}
+function parseGoal(raw) {
+	if (raw === void 0) return void 0;
+	if (!isRecord(raw)) return null;
+	const { xRatio, yRatio } = raw;
+	if (typeof xRatio !== "number" || typeof yRatio !== "number") return null;
+	if (!Number.isFinite(xRatio) || !Number.isFinite(yRatio)) return null;
+	return {
+		xRatio,
+		yRatio
+	};
+}
+function parseIntentJson(text) {
+	if (typeof text !== "string" || !text.trim()) return null;
+	const trimmed = text.trim();
+	const candidate = trimmed.startsWith("{") && trimmed.endsWith("}") ? trimmed : extractFirstJsonObject(text);
+	if (!candidate) return null;
+	let parsed;
+	try {
+		parsed = JSON.parse(candidate);
+	} catch {
+		return null;
+	}
+	if (!isRecord(parsed)) return null;
+	const sequence = parseSequence(parsed.sequence);
+	if (!sequence) return null;
+	const intent = {
+		sequence,
+		source: "ai"
+	};
+	if (parsed.goal !== void 0) {
+		const goal = parseGoal(parsed.goal);
+		if (goal === null) return null;
+		intent.goal = goal;
+	}
+	if (parsed.facing !== void 0) {
+		const facing = parsed.facing;
+		if (facing !== "left" && facing !== "right" && facing !== "keep") return null;
+		intent.facing = facing;
+	}
+	if (parsed.priority !== void 0) {
+		if (typeof parsed.priority !== "number" || !Number.isFinite(parsed.priority)) return null;
+		intent.priority = parsed.priority;
+	}
+	return intent;
 }
 
 //#endregion
@@ -5023,11 +5195,11 @@ exports.CUSTOM_LIMITS = CUSTOM_LIMITS
 exports.CUSTOM_STYLE_KEYS = CUSTOM_STYLE_KEYS
 exports.CUSTOM_TAGS = CUSTOM_TAGS
 exports.DEAD_ZONE_SPEED = DEAD_ZONE_SPEED
+exports.DEFAULT_ARRIVE_THRESHOLD = DEFAULT_ARRIVE_THRESHOLD
 exports.DEFAULT_FONT = DEFAULT_FONT
 exports.DEFAULT_PHYSICS = DEFAULT_PHYSICS
 exports.DEFAULT_ROLLING_LABEL = DEFAULT_ROLLING_LABEL
 exports.DEFAULT_THROW_POWER = DEFAULT_THROW_POWER
-exports.DEFAULT_WALK_SPEED_PX = DEFAULT_WALK_SPEED_PX
 exports.DISPLAY_HOTKEY_HINTS = DISPLAY_HOTKEY_HINTS
 exports.DISPLAY_ORDER = DISPLAY_ORDER
 exports.DRAG_THRESHOLD = DRAG_THRESHOLD
@@ -5109,6 +5281,8 @@ exports.bubbleTopMarginPx = bubbleTopMarginPx
 exports.buildMemeBranch = buildMemeBranch
 exports.buildMenuTree = buildMenuTree
 exports.buildMoreBranch = buildMoreBranch
+exports.canInterrupt = canInterrupt
+exports.choosePlaybackBackend = choosePlaybackBackend
 exports.clampPointInRect = clampPointInRect
 exports.clampPointToRegion = clampPointToRegion
 exports.clickScore = clickScore
@@ -5117,6 +5291,7 @@ exports.createHearHold = createHearHold
 exports.createMemeImage = createMemeImage
 exports.createMemeImageFromUrl = createMemeImageFromUrl
 exports.createModel3dAnimationStub = createModel3dAnimationStub
+exports.createSpineAnimationStub = createSpineAnimationStub
 exports.createTodoPanel = createTodoPanel
 exports.customClickable = customClickable
 exports.customViews = customViews
@@ -5138,6 +5313,7 @@ exports.formatDateTimeLocal = formatDateTimeLocal
 exports.frameToToast = frameToToast
 exports.getVoiceState = getVoiceState
 exports.groupMemes = groupMemes
+exports.hasArrived = hasArrived
 exports.indexAtPoint = indexAtPoint
 exports.injectMemeBubbleCss = injectMemeBubbleCss
 exports.isCaptureHotkey = isCaptureHotkey
@@ -5168,7 +5344,9 @@ exports.nextWorkStatusAnim = nextWorkStatusAnim
 exports.normalizePresentation = normalizePresentation
 exports.overlapPush = overlapPush
 exports.parseDateTimeLocal = parseDateTimeLocal
+exports.parseIntentJson = parseIntentJson
 exports.parseModel3dMeta = parseModel3dMeta
+exports.parseSpineMeta = parseSpineMeta
 exports.parseTodoItem = parseTodoItem
 exports.parseTodoList = parseTodoList
 exports.patchTodo = patchTodo
@@ -5186,6 +5364,7 @@ exports.postAction = postAction
 exports.pullAngle = pullAngle
 exports.quotaTone = quotaTone
 exports.randomBetween = randomBetween
+exports.ratioDistance = ratioDistance
 exports.readAnim = readAnim
 exports.readBalance = readBalance
 exports.readLock = readLock
@@ -5207,8 +5386,10 @@ exports.remainingLabel = remainingLabel
 exports.removeTodo = removeTodo
 exports.resetInText = resetInText
 exports.resolveFontPx = resolveFontPx
+exports.resolveIntentPriority = resolveIntentPriority
 exports.resolveLeafPath = resolveLeafPath
 exports.resolvePetPlaybackSetup = resolvePetPlaybackSetup
+exports.resolvePetPresentation = resolvePetPresentation
 exports.resolveRect = resolveRect
 exports.rollKind = rollKind
 exports.routePathOf = routePathOf

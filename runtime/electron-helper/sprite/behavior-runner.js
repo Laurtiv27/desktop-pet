@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 三维行为执行器：把 Intent 编成 Plan，再逐步播放 / 按像素速度走到目标。
  *
  * model3d 没有 video.ended，duration 与 clip-end 都由本模块的定时器收尾。
@@ -127,7 +127,7 @@ function canInterrupt(currentPriority, intent) {
  * @param {object} sprite
  * @param {{ random?: () => number, roamMinMs?: number, roamMaxMs?: number, clipEndMs?: number }} [opts]
  */
-function createBehaviorRunner(sprite, opts) {
+function createModel3dBehaviorRunner(sprite, opts) {
   const random = opts && typeof opts.random === 'function' ? opts.random : Math.random;
   const roamMinMs = opts && Number.isFinite(opts.roamMinMs) ? opts.roamMinMs : ROAM_MIN_MS;
   const roamMaxMs = opts && Number.isFinite(opts.roamMaxMs) ? opts.roamMaxMs : ROAM_MAX_MS;
@@ -447,6 +447,326 @@ function createBehaviorRunner(sprite, opts) {
   return runner;
 }
 
+const ROAM_IDLE_MS = 1600;
+/** 原地表演优先（槽位名；会映射到 spine.meta.clips） */
+const EXPRESSIVE_CLIPS = ['happy', 'wave', 'turn', 'portal', 'aim', 'run'];
+
+/**
+ * 漫游只读配置里的 `pet.spine.meta`（经 parseSpineMeta）。
+ * 磁盘 `assets/spine/<id>/meta.json` 尚未加载；没有配置内 meta 时 clips 为空。
+ */
+function spineMetaOf(sprite) {
+  const raw = sprite.pet && sprite.pet.spine && sprite.pet.spine.meta;
+  if (!raw || typeof raw !== 'object') return null;
+  if (typeof S.parseSpineMeta === 'function') {
+    const parsed = S.parseSpineMeta(raw);
+    if (parsed) return parsed;
+  }
+  return raw;
+}
+
+function spineClipsOf(sprite) {
+  const meta = spineMetaOf(sprite);
+  const clips = meta && meta.clips;
+  return clips && typeof clips === 'object' ? clips : {};
+}
+
+function spineAllowedClipsOf(sprite) {
+  const set = new Set(CLIP_SLOTS);
+  const clips = spineClipsOf(sprite);
+  for (const key of Object.keys(clips)) {
+    set.add(key);
+    if (typeof clips[key] === 'string' && clips[key]) set.add(clips[key]);
+  }
+  const idle = sprite.animations && sprite.animations.idle;
+  if (Array.isArray(idle)) {
+    for (const name of idle) if (name) set.add(name);
+  }
+  return set;
+}
+
+function spineWalkSpeedPxOf(sprite) {
+  const meta = spineMetaOf(sprite);
+  if (meta && Number.isFinite(meta.walkSpeedPx) && meta.walkSpeedPx > 0) return meta.walkSpeedPx;
+  return S.DEFAULT_WALK_SPEED_PX || 120;
+}
+
+function spineCurrentRatioOf(sprite) {
+  const w = VIEW.w || 1;
+  const h = VIEW.h || 1;
+  return {
+    xRatio: (sprite.pos.x + sprite.halfW) / w,
+    yRatio: (sprite.pos.y + sprite.halfH) / h,
+  };
+}
+
+function spineRatioToOrigin(sprite, goal) {
+  const clamped = clampRatioGoal(goal.xRatio, goal.yRatio);
+  return { x: clamped.xRatio * VIEW.w - sprite.halfW, y: clamped.yRatio * VIEW.h - sprite.halfH };
+}
+
+function spineRandomRoamGoal(random) {
+  const span = 1 - 2 * ROAM_MARGIN;
+  return clampRatioGoal(ROAM_MARGIN + random() * span, ROAM_MARGIN + random() * span);
+}
+
+/**
+ * @param {object} sprite
+ * @param {{ random?: () => number, roamMinMs?: number, roamMaxMs?: number, clipEndMs?: number }} [opts]
+ */
+function createSpineBehaviorRunner(sprite, opts) {
+  const random = opts && typeof opts.random === 'function' ? opts.random : Math.random;
+  const roamMinMs = opts && Number.isFinite(opts.roamMinMs) ? opts.roamMinMs : ROAM_MIN_MS;
+  const roamMaxMs = opts && Number.isFinite(opts.roamMaxMs) ? opts.roamMaxMs : ROAM_MAX_MS;
+  const clipEndMs =
+    opts && Number.isFinite(opts.clipEndMs) && opts.clipEndMs > 0 ? opts.clipEndMs : CLIP_END_FALLBACK_MS;
+
+  const runner = {
+    currentPlan: null,
+    currentPriority: 0,
+    token: 0,
+    _stepTimer: null,
+    _roamTimer: null,
+    _roamStarted: false,
+    submitIntent(intent) {
+      return submitIntent(intent);
+    },
+    cancelPlan(reason) {
+      cancelPlan(reason);
+    },
+    startRoam() {
+      startRoam();
+    },
+    stopRoam() {
+      stopRoam();
+    },
+  };
+
+  function clearStepTimer() {
+    if (runner._stepTimer != null) {
+      window.clearTimeout(runner._stepTimer);
+      runner._stepTimer = null;
+    }
+  }
+
+  function bumpToken() {
+    runner.token += 1;
+    clearStepTimer();
+    if (typeof sprite.stopMove === 'function') sprite.stopMove();
+    return runner.token;
+  }
+
+  function finishPlan() {
+    runner.currentPlan = null;
+    runner.currentPriority = 0;
+  }
+
+  function playClip(clip, loop) {
+    if (sprite.presentation && typeof sprite.presentation.play === 'function') {
+      sprite.presentation.play(clip, { loop: !!loop });
+    }
+  }
+
+  function waitThen(ms, myToken, then) {
+    runner._stepTimer = window.setTimeout(() => {
+      runner._stepTimer = null;
+      if (myToken !== runner.token) return;
+      then();
+    }, ms);
+  }
+
+  function runStep(index, myToken) {
+    if (myToken !== runner.token) return;
+    const plan = runner.currentPlan;
+    if (!plan || index >= plan.steps.length) {
+      finishPlan();
+      return;
+    }
+    const step = plan.steps[index];
+    const next = () => runStep(index + 1, myToken);
+
+    if (step.until === 'arrive' && step.goal) {
+      const goalPx = spineRatioToOrigin(sprite, step.goal);
+      if (goalPx.x > sprite.pos.x) sprite.facing = 'right';
+      else if (goalPx.x < sprite.pos.x) sprite.facing = 'left';
+      playClip(step.clip, step.loop);
+      if (typeof sprite.startSpeedMoveDrive === 'function') {
+        sprite.startSpeedMoveDrive({
+          goal: goalPx,
+          speedPx: spineWalkSpeedPxOf(sprite),
+          onArrive() {
+            if (myToken !== runner.token) return;
+            next();
+          },
+        });
+      } else {
+        next();
+      }
+      return;
+    }
+
+    playClip(step.clip, step.loop);
+    let timed =
+      Number.isFinite(step.durationMs) && step.durationMs > 0 ? step.durationMs : clipEndMs;
+    // play 之后可读真实骨骼动画时长，避免表演被砍半截
+    const sec = sprite.presentation && Number(sprite.presentation.clipDurationSec);
+    if (Number.isFinite(sec) && sec > 0.2) {
+      timed = Math.max(timed, Math.ceil(sec * 1000) + 200);
+    }
+    waitThen(timed, myToken, next);
+  }
+
+  function submitIntent(intent) {
+    if (!intent || typeof intent !== 'object') return false;
+    if (sprite.frozen || sprite.sleeping) return false;
+    if (runner.currentPlan && !S.canInterrupt(runner.currentPriority, intent)) return false;
+    const clips = spineClipsOf(sprite);
+    const walkClip = S.mapPresentationClip('walk', clips);
+    const hasWalkClip = Boolean(clips && clips.walk);
+    const planned = S.planBehavior({
+      intent,
+      allowedClips: spineAllowedClipsOf(sprite),
+      clips,
+      walkClip,
+      hasWalkClip,
+      current: spineCurrentRatioOf(sprite),
+    });
+    if (!planned.ok) {
+      console.warn('[dsh-pet] planBehavior 失败 pet=' + (sprite.pet && sprite.pet.id) + '：' + planned.reason);
+      return false;
+    }
+    const myToken = bumpToken();
+    runner.currentPlan = planned.plan;
+    runner.currentPriority = planned.plan.priority;
+    if (planned.plan.facing === 'left' || planned.plan.facing === 'right') {
+      sprite.facing = planned.plan.facing;
+    }
+    runStep(0, myToken);
+    return true;
+  }
+
+  function cancelPlan(_reason) {
+    bumpToken();
+    finishPlan();
+  }
+
+  function pickExpressiveClip() {
+    const clips = spineClipsOf(sprite);
+    const pool = EXPRESSIVE_CLIPS.filter((slot) => typeof clips[slot] === 'string' && clips[slot]);
+    if (!pool.length) return 'idle';
+    return pool[Math.floor(random() * pool.length)];
+  }
+
+  function actionDurationMs(clipSlot) {
+    // 优先读表现层量到的动画时长；否则给表演动作更长默认，避免 1.5s 砍半截
+    const sec = sprite.presentation && Number(sprite.presentation.clipDurationSec);
+    if (Number.isFinite(sec) && sec > 0.2) return Math.ceil(sec * 1000) + 200;
+    if (clipSlot === 'happy' || clipSlot === 'wave') return 2800;
+    if (clipSlot === 'turn') return 2000;
+    return Math.max(clipEndMs, ROAM_IDLE_MS);
+  }
+
+  function roamEnabled() {
+    // 缺省开启；显式 false 时不自动表演/乱走（留给后续「按窗口内容互动」）
+    const pet = sprite.pet;
+    if (!pet) return true;
+    if (pet.roamEnabled === false) return false;
+    if (pet.spine && pet.spine.meta && pet.spine.meta.autoBehavior === false) return false;
+    return true;
+  }
+
+  function submitRoam() {
+    if (!roamEnabled()) return;
+    if (sprite.frozen || sprite.sleeping) return;
+    if (sprite.dragState && sprite.dragState.active) return;
+    // 菜单开着、或骨骼一次性/外部片段还在播：这次不抢画面。定时器照常排下一次。
+    if (sprite.menuOpen || sprite._spineExternalClip) return;
+    const roll = random();
+    const act = pickExpressiveClip();
+    const actMs = actionDurationMs(act);
+    // ~65% 原地表演（跳/射击/转身）；~35% 走到某处再表演——位移只是配菜
+    if (roll < 0.65 || (sprite.pet && sprite.pet.fixedEnabled)) {
+      submitIntent({
+        source: 'roam',
+        sequence: [
+          { clip: act, until: 'duration', durationMs: actMs },
+          { clip: 'idle', until: 'duration', durationMs: ROAM_IDLE_MS },
+        ],
+      });
+      return;
+    }
+    submitIntent({
+      source: 'roam',
+      goal: spineRandomRoamGoal(random),
+      sequence: [
+        { clip: act, until: 'duration', durationMs: actMs },
+        { clip: 'idle', until: 'duration', durationMs: ROAM_IDLE_MS },
+      ],
+    });
+  }
+
+  function scheduleNextRoam() {
+    if (!runner._roamStarted) return;
+    const span = Math.max(0, roamMaxMs - roamMinMs);
+    const wait = roamMinMs + Math.floor(random() * (span || 1));
+    runner._roamTimer = window.setTimeout(() => {
+      runner._roamTimer = null;
+      submitRoam();
+      scheduleNextRoam();
+    }, wait);
+  }
+
+  function startRoam() {
+    if (!roamEnabled()) {
+      stopRoam();
+      return;
+    }
+    if (runner._roamStarted) {
+      // playIdle 在打断之后会再进来：计划已空就立刻补一次，不必干等下一次定时器。
+      if (!runner.currentPlan) submitRoam();
+      return;
+    }
+    runner._roamStarted = true;
+    submitRoam();
+    scheduleNextRoam();
+  }
+
+  function stopRoam() {
+    runner._roamStarted = false;
+    if (runner._roamTimer != null) {
+      window.clearTimeout(runner._roamTimer);
+      runner._roamTimer = null;
+    }
+  }
+
+  return runner;
+}
+
+function isPlanKind(sprite) {
+  return sprite.playbackKind === 'model3d' || sprite.playbackKind === 'spine';
+}
+
+function createNoopBehaviorRunner() {
+  return {
+    currentPlan: null,
+    currentPriority: 0,
+    submitIntent() {
+      return false;
+    },
+    cancelPlan() {},
+    startRoam() {},
+    stopRoam() {},
+    startInPlaceActs() {},
+    stopInPlaceActs() {},
+  };
+}
+
+function createBehaviorRunner(sprite, opts) {
+  if (sprite.playbackKind === 'model3d') return createModel3dBehaviorRunner(sprite, opts);
+  if (sprite.playbackKind === 'spine') return createSpineBehaviorRunner(sprite, opts);
+  return createNoopBehaviorRunner();
+}
+
 Object.assign(PetSprite.prototype, {
   ensureBehaviorRunner() {
     if (!this.behaviorRunner) this.behaviorRunner = createBehaviorRunner(this);
@@ -454,7 +774,7 @@ Object.assign(PetSprite.prototype, {
   },
 
   submitIntent(intent) {
-    if (this.playbackKind !== 'model3d') return false;
+    if (!isPlanKind(this)) return false;
     return this.ensureBehaviorRunner().submitIntent(intent);
   },
 
@@ -464,17 +784,16 @@ Object.assign(PetSprite.prototype, {
   },
 
   startRoam() {
-    if (this.playbackKind !== 'model3d') return;
+    if (!isPlanKind(this)) return;
     this.ensureBehaviorRunner().startRoam();
   },
 
   stopRoam() {
     if (!this.behaviorRunner) return;
     this.behaviorRunner.stopRoam();
-    this.behaviorRunner.stopInPlaceActs();
+    if (typeof this.behaviorRunner.stopInPlaceActs === 'function') this.behaviorRunner.stopInPlaceActs();
   },
 
-  /** 拖拽成立后：有 drag 槽才换片段；Fox 演示没有该槽，保持当前画面。 */
   playModel3dDrag() {
     if (this.playbackKind !== 'model3d' || this.sleeping) return;
     const clips = this.model3dMeta && this.model3dMeta.clips;

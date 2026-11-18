@@ -4,6 +4,8 @@
  * 纯类型与常量，无 React / DOM 依赖。
  * @module dsh-pet/src/shared/types
  */
+import type { PresentationKind } from './behavior/types.ts';
+import type { SpineMeta } from './behavior/spine-meta.ts';
 
 /** 支持的角落。 */
 export type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -113,6 +115,16 @@ export interface Pet {
    *  写了就取代所属条目顶层那一份（替换而非拼接），没写或空串则回落条目——回落发生在宿主半侧，不是错误。
    *  只写正文：名字与时间背景由宿主无条件追加，不要在这里重复写。 */
   whisperPrompt?: string;
+  /** 呈现方式：video / spine / model3d；缺省按 video（见 {@link normalizePresentation}）。 */
+  presentation?: PresentationKind;
+  /** 骨骼素材：`root` 为相对 `assets/spine/<id>` 或条目素材根下的子路径；`meta` 为槽位与皮肤元数据。 */
+  spine?: { root: string; meta?: SpineMeta };
+  /** 仅 presentation === 'model3d' 时有效 */
+  model3d?: {
+    /** 相对 /model3d/<assetId>/ 的目录名；缺省用 pet.id */
+    assetId?: string;
+    meta?: import('./behavior/model3d-meta.ts').Model3dMeta;
+  };
   animations?: Animations;
   animationWeights?: Weights;
   extra?: boolean;
@@ -149,14 +161,6 @@ export interface Pet {
   chatAnimationEnabled?: boolean;
   /** 条目级：对话配图张数上限（非负整数，0 = 不限制）。只截「交给模型的清单」，不截碎碎念抽图。 */
   chatImageLimit?: number;
-  /** 表现后端：缺省 video；spine 类型预留本分支不实现；model3d = Three.js glTF */
-  presentation?: 'video' | 'spine' | 'model3d';
-  /** 仅 presentation === 'model3d' 时有效 */
-  model3d?: {
-    /** 相对 /model3d/<assetRoot>/ 的目录名；缺省用 pet.id */
-    assetId?: string;
-    meta?: import('./behavior/model3d-meta.ts').Model3dMeta;
-  };
 }
 
 /** 一处「服务商 + 模型」选择（config.jsonc 的 whisperModel / chatModel 段）。

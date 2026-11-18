@@ -8,8 +8,9 @@
 import { defaultLog } from '../log-file.ts';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { CORNER_SET, isValidPetId, PET_DISPLAY_SET } from './constants.ts';
+import { CORNER_SET, isValidPetId, PET_DISPLAY_SET, PET_PRESENTATION_SET } from './constants.ts';
 import { isValidSizePercent } from '../../shared/pet-size.ts';
+import { parsePetSpine, type PetSpine } from './spine-field.ts';
 import type { ConfigPaths } from './constants.ts';
 import { fontValid, modelSelectionValid, physicsValid, topFieldValid } from './validate.ts';
 
@@ -102,6 +103,11 @@ export function saveUserConfig(
     // 传了必须是布尔，没传则走下面的读取侧默认值（内置默认 false = 不固定）。
     const fixedEnabled = pp.fixedEnabled;
     if (fixedEnabled !== undefined && typeof fixedEnabled !== 'boolean') return null;
+    // 表现类型（可选）：传了必须是 video / spine / model3d，没传则不落键（读取侧按 video）。
+    const presentation = pp.presentation;
+    if (presentation !== undefined && presentation !== null && !PET_PRESENTATION_SET.has(String(presentation))) {
+      return null;
+    }
     const display = String(pp.display ?? '');
     if (!PET_DISPLAY_SET.has(display)) return null;
     const pos = pp.position && typeof pp.position === 'object' ? (pp.position as Record<string, unknown>) : {};
@@ -133,6 +139,12 @@ export function saveUserConfig(
     if (persona) pet.whisperPrompt = persona;
     if (sizePercent !== undefined && sizePercent !== null) pet.sizePercent = sizePercent;
     Object.assign(pet, presentationExtra);
+    // spine 可选。请求体写了就校验后落盘；没写则按 id 保留磁盘上已有的 spine，
+    // 这样设置页只改 presentation / 其它展示字段时不会把骨骼配置抹掉。
+    const spineOwn = parsePetSpine(pp.spine);
+    if (spineOwn === null) return null;
+    const spine = spineOwn ?? spineKeptFromExisting(existing, id);
+    if (spine) pet.spine = spine;
     out.push(pet);
   }
   const ne = o.notificationsEnabled;
@@ -266,6 +278,20 @@ export function saveUserConfig(
     }
   }
   return outConfig;
+}
+
+/** 请求体没带 spine 时，按 id 找回磁盘上仍合法的那份（非法旧值直接丢掉）。 */
+function spineKeptFromExisting(existing: Record<string, unknown> | undefined, id: string): PetSpine | undefined {
+  if (!existing || !Array.isArray(existing.pets)) return undefined;
+  for (const item of existing.pets) {
+    if (!item || typeof item !== 'object') continue;
+    const pet = item as Record<string, unknown>;
+    const petId = typeof pet.id === 'string' ? pet.id.trim() : '';
+    if (petId !== id) continue;
+    const kept = parsePetSpine(pet.spine);
+    return kept ?? undefined;
+  }
+  return undefined;
 }
 
 /**
