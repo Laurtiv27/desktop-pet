@@ -32,15 +32,6 @@
 
 ---
 
-## 为什么用 desktop-pet？
-
-- **三种表现层同仓共存**：`presentation: "video" | "spine" | "model3d"`，按宠物配置热切换，互不抢渲染管线。
-- **真桌面体验**：Electron 透明置顶窗、拖拽/抛掷物理、托盘、多开。
-- **本地优先**：坐姿与屏幕感知在本机完成；AI 密钥自备，可关。
-- **开箱可玩**：内置 WebM 女仆动画；附 Spine / glTF 演示素材与文档。
-
-English keywords: open-source desktop pet, transparent Electron pet, Spine desktop companion, glTF / GLB 3D desktop pet, Live2D-style skeletal pet, AI desktop mascot, posture reminder.
-
 ## Features
 
 - **透明桌宠** — 上百个 VP9-alpha WebM；拖拽、物理、气泡与托盘常驻
